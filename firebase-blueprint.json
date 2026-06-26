@@ -1,0 +1,162 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered citizen, officer, or administrator profiles.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Unique Firebase Authentication UID." },
+        "name": { "type": "string", "description": "Full display name." },
+        "email": { "type": "string", "format": "email", "description": "User email address." },
+        "photoURL": { "type": "string", "description": "Profile picture URL." },
+        "role": { "type": "string", "enum": ["Citizen", "Officer", "Department Head", "Super Admin"], "description": "Access control role." },
+        "reputation": { "type": "integer", "description": "Reputation points awarded for civic engagement." },
+        "badges": { "type": "array", "description": "Array of strings representing unlocked badges." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last updated timestamp." }
+      },
+      "required": ["uid", "name", "email", "role", "reputation", "createdAt", "updatedAt"]
+    },
+    "Issue": {
+      "title": "Issue",
+      "description": "Civic issue submitted by a citizen.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique issue ID." },
+        "title": { "type": "string", "description": "AI-generated or citizen descriptive title." },
+        "description": { "type": "string", "description": "Full details of the reported issue." },
+        "category": { "type": "string", "description": "Classified category (e.g. Pothole, Streetlight, Waste)." },
+        "department": { "type": "string", "description": "Assigned municipality department." },
+        "status": { "type": "string", "enum": ["Submitted", "AI Analysis", "Department Assigned", "Under Review", "In Progress", "Resolved", "Community Verification", "Verified", "Closed"], "description": "Lifecycle state." },
+        "severity": { "type": "string", "enum": ["Low", "Medium", "High", "Critical"], "description": "AI or admin-assessed severity level." },
+        "priority": { "type": "string", "enum": ["Low", "Medium", "High", "Critical"], "description": "Assessed action priority." },
+        "lat": { "type": "number", "description": "Latitude coordinate." },
+        "lng": { "type": "number", "description": "Longitude coordinate." },
+        "address": { "type": "string", "description": "Human-readable approximate address." },
+        "imageUrl": { "type": "string", "description": "Attached photo URL of the issue." },
+        "voiceNoteUrl": { "type": "string", "description": "Attached voice transcript/audio description URL if provided." },
+        "reporterId": { "type": "string", "description": "UID of the reporting citizen." },
+        "reporterName": { "type": "string", "description": "DisplayName of the reporting citizen." },
+        "votesCount": { "type": "integer", "description": "Number of upvotes/supports." },
+        "voters": { "type": "array", "description": "Array of citizen UIDs who supported this issue." },
+        "assignedOfficerId": { "type": "string", "description": "UID of the officer assigned to resolve this issue." },
+        "assignedOfficerName": { "type": "string", "description": "Name of the officer assigned." },
+        "beforeImageUrl": { "type": "string", "description": "Original image at reporting." },
+        "afterImageUrl": { "type": "string", "description": "Verification image provided by resolver." },
+        "resolutionNotes": { "type": "string", "description": "Closing notes provided by the officer." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Time reported." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Time last updated." }
+      },
+      "required": ["id", "title", "description", "category", "department", "status", "severity", "priority", "lat", "lng", "address", "reporterId", "reporterName", "votesCount", "voters", "createdAt", "updatedAt"]
+    },
+    "Comment": {
+      "title": "Comment",
+      "description": "User comment on an issue discussion feed.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Comment unique ID." },
+        "issueId": { "type": "string", "description": "Associated issue ID." },
+        "userId": { "type": "string", "description": "UID of commenting user." },
+        "userName": { "type": "string", "description": "Name of commenting user." },
+        "userPhotoURL": { "type": "string", "description": "User photo." },
+        "userRole": { "type": "string", "description": "User role." },
+        "text": { "type": "string", "description": "Markdown comment text." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Time commented." }
+      },
+      "required": ["id", "issueId", "userId", "userName", "text", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "System alerts and notifications dispatched to users.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Notification unique ID." },
+        "userId": { "type": "string", "description": "Recipient user UID." },
+        "title": { "type": "string", "description": "Short alert title." },
+        "message": { "type": "string", "description": "Longer detail message." },
+        "issueId": { "type": "string", "description": "ID of associated issue if any." },
+        "type": { "type": "string", "enum": ["Issue Assigned", "Status Changed", "Comment Added", "Verification Requested", "Issue Resolved"], "description": "Alert category." },
+        "read": { "type": "boolean", "description": "Read state flag." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Alert dispatch time." }
+      },
+      "required": ["id", "userId", "title", "message", "type", "read", "createdAt"]
+    },
+    "Department": {
+      "title": "Department",
+      "description": "Municipal department responsible for issue resolution.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Department code/ID (e.g. sanitation, roads)." },
+        "name": { "type": "string", "description": "Full human-readable department name." },
+        "officerCount": { "type": "integer", "description": "Number of registered active officers." },
+        "resolvedCount": { "type": "integer", "description": "Total successfully verified resolutions." },
+        "activeCount": { "type": "integer", "description": "Total currently active issues assigned." }
+      },
+      "required": ["id", "name", "officerCount", "resolvedCount", "activeCount"]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "Audit trails for lifecycle actions on issues.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique log ID." },
+        "issueId": { "type": "string", "description": "Associated issue ID." },
+        "userId": { "type": "string", "description": "UID of actor." },
+        "userName": { "type": "string", "description": "Name of actor." },
+        "action": { "type": "string", "description": "Description of action (e.g., 'Status changed to In Progress')." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Time of event." }
+      },
+      "required": ["id", "issueId", "userId", "userName", "action", "createdAt"]
+    },
+    "VerificationRequest": {
+      "title": "VerificationRequest",
+      "description": "An request for the community to verify that an issue is resolved.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique verification request ID." },
+        "issueId": { "type": "string", "description": "Associated issue ID." },
+        "officerId": { "type": "string", "description": "UID of officer requesting." },
+        "officerName": { "type": "string", "description": "Name of officer requesting." },
+        "beforeImageUrl": { "type": "string", "description": "Photo when reported." },
+        "afterImageUrl": { "type": "string", "description": "Photo showing resolution." },
+        "notes": { "type": "string", "description": "Resolution message." },
+        "votesVerified": { "type": "integer", "description": "Count of citizens confirming resolution." },
+        "votesRejected": { "type": "integer", "description": "Count of citizens disputing resolution." },
+        "voters": { "type": "array", "description": "Map of citizen UID to boolean vote (true=verify, false=dispute)." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Request dispatch time." },
+        "status": { "type": "string", "enum": ["Pending", "Approved", "Disputed"], "description": "Current resolution status." }
+      },
+      "required": ["id", "issueId", "officerId", "officerName", "afterImageUrl", "votesVerified", "votesRejected", "voters", "createdAt", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Profiles of civic stakeholders (citizens, officers, and admins)."
+    },
+    "/issues/{issueId}": {
+      "schema": "Issue",
+      "description": "Main collection for reported civic issues."
+    },
+    "/issues/{issueId}/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Discussion comments nested inside specific issues."
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Targeted notifications for specific stakeholders."
+    },
+    "/departments/{departmentId}": {
+      "schema": "Department",
+      "description": "List of municipal departments and their performance stats."
+    },
+    "/issues/{issueId}/activityLogs/{logId}": {
+      "schema": "ActivityLog",
+      "description": "Nested audit trail history for each issue."
+    },
+    "/issues/{issueId}/verificationRequests/{requestId}": {
+      "schema": "VerificationRequest",
+      "description": "Community-led resolution audits nested under issues."
+    }
+  }
+}

@@ -188,6 +188,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
       setUser(cred.user);
+      setIsSandboxMode(false);
+      localStorage.setItem('ch_sandbox_mode', 'false');
     } catch (err: any) {
       setError(err.message || 'Failed to login');
       throw err;
@@ -200,6 +202,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       setUser(cred.user);
+      setIsSandboxMode(false);
+      localStorage.setItem('ch_sandbox_mode', 'false');
       // Wait for profile setup
       await loadProfile(cred.user.uid, email, name);
     } catch (err: any) {
@@ -215,6 +219,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
       setUser(cred.user);
+      setIsSandboxMode(false);
+      localStorage.setItem('ch_sandbox_mode', 'false');
     } catch (err: any) {
       setError(err.message || 'Google Sign-In failed');
       throw err;
@@ -222,12 +228,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    if (isSandboxMode) {
-      // Just clear mock state
-      setUser(null);
-      setProfile(null);
-      return;
-    }
+    setIsSandboxMode(false);
+    localStorage.removeItem('ch_sandbox_mode');
+    setUser(null);
+    setProfile(null);
     if (!auth) return;
     try {
       await signOut(auth);

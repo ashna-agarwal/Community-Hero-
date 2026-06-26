@@ -4,16 +4,22 @@ import {
   getDoc, 
   getDocs, 
   setDoc, 
-  addDoc, 
   updateDoc, 
   query, 
   where, 
   orderBy, 
-  limit, 
-  Timestamp 
+  limit 
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Issue, Comment, Notification, ActivityLog, VerificationRequest, UserProfile } from '../types';
+import { Issue, Comment, Notification, ActivityLog, VerificationRequest } from '../types';
+
+// Offline detection state to dynamically fall back to local storage
+let isFirebaseOffline = false;
+
+// Check if we should use local mock storage (when Firebase is unconfigured, in sandbox mode, or offline)
+const isLocalMode = (): boolean => {
+  return !db || isFirebaseOffline || localStorage.getItem('ch_sandbox_mode') === 'true';
+};
 
 // Generic error handler
 const handleDBError = (action: string, error: any) => {
@@ -22,12 +28,306 @@ const handleDBError = (action: string, error: any) => {
 };
 
 /**
- * ISSUES collection services
+ * MOCK DATA SEED GENERATOR
+ * Pre-populates the local storage with real-world scenarios straight from the hackathon brief.
  */
+const SEED_ISSUES: Issue[] = [
+  {
+    id: 'issue-101',
+    title: 'Flooded Main Junction & Sewage Overflow',
+    description: 'The main crossing in Sector 56 is completely submerged due to sewage blockages. Traffic is halted, causing huge delays for 5000+ daily commuters. AI merged 500 separate citizen complaints.',
+    category: 'Water & Sewage',
+    department: 'Water & Sewage Authority',
+    status: 'In Progress',
+    severity: 'Critical',
+    priority: 'Critical',
+    lat: 28.4595,
+    lng: 77.0266,
+    address: 'Sector 56 Crossroad, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-1',
+    reporterName: 'Ashna Agarwal',
+    votesCount: 420,
+    voters: ['user-1', 'user-2', 'user-3'],
+    assignedOfficerId: 'officer-1',
+    assignedOfficerName: 'Sanjay Dutt',
+    createdAt: new Date(Date.now() - 32 * 24 * 60 * 60 * 1000).toISOString(), // 32 days ago
+    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    // GAP specifics
+    priorityScore: 97,
+    credibilityScore: 98,
+    credibilityExplanation: 'Multi-spectral image metadata aligns with GPS tag. Historical flood report consistent.',
+    escalationLevel: 2, // Escalated to Department Head
+    escalationDate: new Date(Date.now() - 17 * 24 * 60 * 60 * 1000).toISOString(),
+    isMerged: true,
+    affectedCount: 500
+  },
+  {
+    id: 'issue-102',
+    title: 'Dangerous Deep Potholes',
+    description: 'Multiple cavernous potholes on the main market road. Already caused two two-wheeler accidents this week. Delayed by Rajesh Kumar Rajesh of PWD Gurgaon.',
+    category: 'Potholes & Roads',
+    department: 'Public Works Dept',
+    status: 'Under Review',
+    severity: 'High',
+    priority: 'High',
+    lat: 28.4682,
+    lng: 77.0329,
+    address: 'Central Market main avenue, Ward 8',
+    imageUrl: 'https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-2',
+    reporterName: 'Amit Shah',
+    votesCount: 88,
+    voters: ['user-2'],
+    assignedOfficerId: 'officer-rajesh',
+    assignedOfficerName: 'Rajesh Kumar',
+    createdAt: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(), // 18 days ago
+    updatedAt: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(),
+    // GAP specifics
+    priorityScore: 75,
+    credibilityScore: 92,
+    credibilityExplanation: 'AI structural damage scanning matches local user report history. High contrast image verify.',
+    escalationLevel: 1, // Escalated to Senior Officer
+    escalationDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'issue-103',
+    title: 'Complete Blackout on Rose Street',
+    description: 'All 15 streetlights have been completely dead for 2 weeks, making the street pitch-black and unsafe for women and children at night.',
+    category: 'Streetlights & Electricity',
+    department: 'Traffic Engineering',
+    status: 'Community Verification',
+    severity: 'Medium',
+    priority: 'Medium',
+    lat: 28.4501,
+    lng: 77.0422,
+    address: 'Rose Avenue Sector 22, Ward 6',
+    imageUrl: 'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-3',
+    reporterName: 'Divya Sharma',
+    votesCount: 34,
+    voters: [],
+    assignedOfficerId: 'officer-3',
+    assignedOfficerName: 'Manoj Sinha',
+    createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    beforeImageUrl: 'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?auto=format&fit=crop&w=600&q=80',
+    afterImageUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&w=600&q=80',
+    resolutionNotes: 'Replaced all 15 fluorescent bulbs with energy-efficient LED models and fixed local distribution box.',
+    // GAP specifics
+    priorityScore: 45,
+    credibilityScore: 89,
+    credibilityExplanation: 'No image modification detected. Exif metadata is fully compliant.',
+    escalationLevel: 0,
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'issue-104',
+    title: 'Toxic Slurry Dumping near Forest Boundary',
+    description: 'Unknown tankers illegally dumping chemical industrial sludge near the local natural forest buffer. Foul smell spreading.',
+    category: 'Waste & Sanitation',
+    department: 'Sanitation Department',
+    status: 'Submitted',
+    severity: 'Critical',
+    priority: 'High',
+    lat: 28.4320,
+    lng: 77.0180,
+    address: 'Forest Road Border, Ward 8',
+    imageUrl: 'https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-4',
+    reporterName: 'Karan Mehra',
+    votesCount: 125,
+    voters: [],
+    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    // GAP specifics
+    priorityScore: 85,
+    credibilityScore: 94,
+    credibilityExplanation: 'Chemical residue markers detected in the image using structural contrast analytics.',
+    escalationLevel: 0,
+    isMerged: false,
+    affectedCount: 1
+  }
+];
+
+const SEED_COMMENTS: Record<string, Comment[]> = {
+  'issue-101': [
+    {
+      id: 'c-1',
+      issueId: 'issue-101',
+      userId: 'reporter-1',
+      userName: 'Ashna Agarwal',
+      userRole: 'Citizen',
+      text: 'This is getting worse daily. It is literally pouring into residential yards. Pls fix ASAP!',
+      createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    },
+    {
+      id: 'c-2',
+      issueId: 'issue-101',
+      userId: 'officer-1',
+      userName: 'Sanjay Dutt',
+      userRole: 'Officer',
+      text: 'Our municipal sewer teams have deployed excavators to clear blockages in the primary outlet canal. We appreciate your patience.',
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+    }
+  ],
+  'issue-102': [
+    {
+      id: 'c-3',
+      issueId: 'issue-102',
+      userId: 'user-2',
+      userName: 'Pranav Roy',
+      userRole: 'Citizen',
+      text: 'My car tire burst right here last night. There is literally no safety board or barricading around Rajesh Kumars jurisdiction!',
+      createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
+    }
+  ]
+};
+
+const SEED_LOGS: Record<string, ActivityLog[]> = {
+  'issue-101': [
+    {
+      id: 'log-1',
+      issueId: 'issue-101',
+      userId: 'reporter-1',
+      userName: 'Ashna Agarwal',
+      action: 'Reported issue and initiated AI triage.',
+      createdAt: new Date(Date.now() - 32 * 24 * 60 * 60 * 1000).toISOString()
+    },
+    {
+      id: 'log-2',
+      issueId: 'issue-101',
+      userId: 'ai-engine',
+      userName: 'Gemini AI',
+      action: 'AI classified as Water & Sewage, calculated Priority Score of 97 and merged 500 duplicate tickets.',
+      createdAt: new Date(Date.now() - 32 * 24 * 60 * 60 * 1000).toISOString()
+    },
+    {
+      id: 'log-3',
+      issueId: 'issue-101',
+      userId: 'system',
+      userName: 'Escalation Agent',
+      action: 'Escalated to Day 15 Senior Officer (Sanjay Dutt Assigned).',
+      createdAt: new Date(Date.now() - 17 * 24 * 60 * 60 * 1000).toISOString()
+    },
+    {
+      id: 'log-4',
+      issueId: 'issue-101',
+      userId: 'system',
+      userName: 'Escalation Agent',
+      action: 'Escalated to Day 30 Department Head (Municipal Commissioner Warned).',
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+    }
+  ]
+};
+
+const SEED_VERIFICATION_REQUESTS: Record<string, VerificationRequest[]> = {
+  'issue-103': [
+    {
+      id: 'vr-1',
+      issueId: 'issue-103',
+      officerId: 'officer-3',
+      officerName: 'Manoj Sinha',
+      afterImageUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&w=600&q=80',
+      notes: 'All streetlights are now fully functional. Gemini AI vision analyzed the proof image with 96% repair confidence.',
+      votesVerified: 1,
+      votesRejected: 0,
+      voters: { 'user-1': true },
+      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      status: 'Pending'
+    }
+  ]
+};
+
+// Initialize Offline LocalStorage Db if not pre-seeded
+const initLocalStorageDb = () => {
+  if (!localStorage.getItem('ch_local_issues')) {
+    localStorage.setItem('ch_local_issues', JSON.stringify(SEED_ISSUES));
+  }
+  if (!localStorage.getItem('ch_local_comments')) {
+    localStorage.setItem('ch_local_comments', JSON.stringify(SEED_COMMENTS));
+  }
+  if (!localStorage.getItem('ch_local_logs')) {
+    localStorage.setItem('ch_local_logs', JSON.stringify(SEED_LOGS));
+  }
+  if (!localStorage.getItem('ch_local_vreqs')) {
+    localStorage.setItem('ch_local_vreqs', JSON.stringify(SEED_VERIFICATION_REQUESTS));
+  }
+  if (!localStorage.getItem('ch_local_notifs')) {
+    localStorage.setItem('ch_local_notifs', JSON.stringify([]));
+  }
+};
+
+initLocalStorageDb();
+
+/**
+ * OFFLINE COMPATIBILITY HELPERS
+ */
+const getLocalIssues = (): Issue[] => {
+  initLocalStorageDb();
+  return JSON.parse(localStorage.getItem('ch_local_issues') || '[]');
+};
+
+const saveLocalIssues = (issues: Issue[]) => {
+  localStorage.setItem('ch_local_issues', JSON.stringify(issues));
+};
+
+/**
+ * CENTRAL DATABASE INTERACTION SUITE (WITH DUAL-PATH FALLBACK)
+ */
+
 export const dbCreateIssue = async (issue: Omit<Issue, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
-  if (!db) throw new Error('Firestore is not initialized');
+  if (isLocalMode()) {
+    initLocalStorageDb();
+    const id = `issue-${Math.random().toString(36).substring(2, 9)}`;
+    const newIssue: Issue = {
+      ...issue,
+      id,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    // Add to mock issues
+    const issues = getLocalIssues();
+    issues.unshift(newIssue);
+    saveLocalIssues(issues);
+
+    // Save activity log
+    const localLogs = JSON.parse(localStorage.getItem('ch_local_logs') || '{}');
+    if (!localLogs[id]) localLogs[id] = [];
+    localLogs[id].push({
+      id: `log-${Date.now()}`,
+      issueId: id,
+      userId: issue.reporterId,
+      userName: issue.reporterName,
+      action: 'Reported issue and completed AI verification.',
+      createdAt: new Date().toISOString()
+    });
+    localStorage.setItem('ch_local_logs', JSON.stringify(localLogs));
+
+    // Save notification
+    const localNotifs = JSON.parse(localStorage.getItem('ch_local_notifs') || '[]');
+    localNotifs.push({
+      id: `notif-${Date.now()}`,
+      userId: issue.reporterId,
+      title: 'Report Registered',
+      message: `Your report "${issue.title}" has been successfully logged with Priority Score: ${issue.priorityScore || 50}.`,
+      issueId: id,
+      type: 'Status Changed',
+      read: false,
+      createdAt: new Date().toISOString()
+    });
+    localStorage.setItem('ch_local_notifs', JSON.stringify(localNotifs));
+
+    return id;
+  }
+
+  // FIRESTORE FLOW
   try {
-    const issueRef = doc(collection(db, 'issues'));
+    const issueRef = doc(collection(db!, 'issues'));
     const newIssue: Issue = {
       ...issue,
       id: issueRef.id,
@@ -37,7 +337,7 @@ export const dbCreateIssue = async (issue: Omit<Issue, 'id' | 'createdAt' | 'upd
     await setDoc(issueRef, newIssue);
 
     // Write initial Activity Log
-    const logRef = doc(collection(db, `issues/${issueRef.id}/activityLogs`));
+    const logRef = doc(collection(db!, `issues/${issueRef.id}/activityLogs`));
     const initLog: ActivityLog = {
       id: logRef.id,
       issueId: issueRef.id,
@@ -49,7 +349,7 @@ export const dbCreateIssue = async (issue: Omit<Issue, 'id' | 'createdAt' | 'upd
     await setDoc(logRef, initLog);
 
     // Create system notification
-    const notifRef = doc(collection(db, 'notifications'));
+    const notifRef = doc(collection(db!, 'notifications'));
     const initNotif: Notification = {
       id: notifRef.id,
       userId: issue.reporterId,
@@ -63,31 +363,50 @@ export const dbCreateIssue = async (issue: Omit<Issue, 'id' | 'createdAt' | 'upd
     await setDoc(notifRef, initNotif);
 
     return issueRef.id;
-  } catch (err) {
-    return handleDBError('createIssue', err);
+  } catch (err: any) {
+    console.warn('[Community Hero] Firestore dbCreateIssue failed, falling back to LocalStorage:', err);
+    isFirebaseOffline = true;
+    const id = `issue-${Math.random().toString(36).substring(2, 9)}`;
+    const newIssue: Issue = {
+      ...issue,
+      id,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    const issues = getLocalIssues();
+    issues.unshift(newIssue);
+    saveLocalIssues(issues);
+    return id;
   }
 };
 
 export const dbGetIssues = async (): Promise<Issue[]> => {
-  if (!db) return [];
+  if (isLocalMode()) {
+    return getLocalIssues();
+  }
+
   try {
-    const q = query(collection(db, 'issues'), orderBy('createdAt', 'desc'));
+    const q = query(collection(db!, 'issues'), orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
     const list: Issue[] = [];
     querySnapshot.forEach((docSnap) => {
       list.push(docSnap.data() as Issue);
     });
-    return list;
+    return list.length > 0 ? list : getLocalIssues(); // fallback if Firestore is empty
   } catch (err) {
-    return handleDBError('getIssues', err);
+    console.warn('Firestore getIssues failed, falling back to local seed data:', err);
+    return getLocalIssues();
   }
 };
 
 export const dbGetMyIssues = async (userId: string): Promise<Issue[]> => {
-  if (!db) return [];
+  if (isLocalMode()) {
+    return getLocalIssues().filter(i => i.reporterId === userId);
+  }
+
   try {
     const q = query(
-      collection(db, 'issues'), 
+      collection(db!, 'issues'), 
       where('reporterId', '==', userId), 
       orderBy('createdAt', 'desc')
     );
@@ -98,17 +417,21 @@ export const dbGetMyIssues = async (userId: string): Promise<Issue[]> => {
     });
     return list;
   } catch (err) {
-    return handleDBError('getMyIssues', err);
+    console.warn('Firestore getMyIssues failed, falling back to local mock filtering.');
+    return getLocalIssues().filter(i => i.reporterId === userId);
   }
 };
 
 export const dbGetIssueById = async (id: string): Promise<Issue | null> => {
-  if (!db) return null;
+  if (isLocalMode()) {
+    return getLocalIssues().find(i => i.id === id) || null;
+  }
+
   try {
-    const docSnap = await getDoc(doc(db, 'issues', id));
-    return docSnap.exists() ? (docSnap.data() as Issue) : null;
+    const docSnap = await getDoc(doc(db!, 'issues', id));
+    return docSnap.exists() ? (docSnap.data() as Issue) : (getLocalIssues().find(i => i.id === id) || null);
   } catch (err) {
-    return handleDBError('getIssueById', err);
+    return getLocalIssues().find(i => i.id === id) || null;
   }
 };
 
@@ -119,9 +442,50 @@ export const dbUpdateIssueStatus = async (
   actorName: string,
   extraData?: Partial<Issue>
 ): Promise<void> => {
-  if (!db) throw new Error('Firestore is not initialized');
+  if (isLocalMode()) {
+    const issues = getLocalIssues();
+    const index = issues.findIndex(i => i.id === issueId);
+    if (index !== -1) {
+      issues[index] = {
+        ...issues[index],
+        status,
+        updatedAt: new Date().toISOString(),
+        ...extraData
+      };
+      saveLocalIssues(issues);
+
+      // Audit Trail Log
+      const localLogs = JSON.parse(localStorage.getItem('ch_local_logs') || '{}');
+      if (!localLogs[issueId]) localLogs[issueId] = [];
+      localLogs[issueId].push({
+        id: `log-${Date.now()}`,
+        issueId,
+        userId: actorId,
+        userName: actorName,
+        action: `Status updated to [${status}]. ${extraData?.resolutionNotes ? 'Resolution Notes: ' + extraData.resolutionNotes : ''}`,
+        createdAt: new Date().toISOString()
+      });
+      localStorage.setItem('ch_local_logs', JSON.stringify(localLogs));
+
+      // Notification
+      const localNotifs = JSON.parse(localStorage.getItem('ch_local_notifs') || '[]');
+      localNotifs.push({
+        id: `notif-${Date.now()}`,
+        userId: issues[index].reporterId,
+        title: 'Status Action Logged',
+        message: `Your report "${issues[index].title}" has updated to: ${status}`,
+        issueId,
+        type: 'Status Changed',
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+      localStorage.setItem('ch_local_notifs', JSON.stringify(localNotifs));
+    }
+    return;
+  }
+
   try {
-    const issueRef = doc(db, 'issues', issueId);
+    const issueRef = doc(db!, 'issues', issueId);
     const updatePayload: Partial<Issue> = {
       status,
       updatedAt: new Date().toISOString(),
@@ -130,7 +494,7 @@ export const dbUpdateIssueStatus = async (
     await updateDoc(issueRef, updatePayload);
 
     // Audit Trail Log
-    const logRef = doc(collection(db, `issues/${issueId}/activityLogs`));
+    const logRef = doc(collection(db!, `issues/${issueId}/activityLogs`));
     const log: ActivityLog = {
       id: logRef.id,
       issueId,
@@ -141,11 +505,11 @@ export const dbUpdateIssueStatus = async (
     };
     await setDoc(logRef, log);
 
-    // Create Notification for the reporter
+    // Create Notification
     const issueSnap = await getDoc(issueRef);
     if (issueSnap.exists()) {
       const issueData = issueSnap.data() as Issue;
-      const notifRef = doc(collection(db, 'notifications'));
+      const notifRef = doc(collection(db!, 'notifications'));
       const notification: Notification = {
         id: notifRef.id,
         userId: issueData.reporterId,
@@ -158,42 +522,113 @@ export const dbUpdateIssueStatus = async (
       };
       await setDoc(notifRef, notification);
     }
-  } catch (err) {
-    handleDBError('updateIssueStatus', err);
+  } catch (err: any) {
+    console.warn('[Community Hero] Firestore dbUpdateIssueStatus failed, falling back to LocalStorage:', err);
+    isFirebaseOffline = true;
+    const issues = getLocalIssues();
+    const index = issues.findIndex(i => i.id === issueId);
+    if (index !== -1) {
+      issues[index] = {
+        ...issues[index],
+        status,
+        updatedAt: new Date().toISOString(),
+        ...extraData
+      };
+      saveLocalIssues(issues);
+    }
   }
 };
 
 export const dbSupportIssue = async (issueId: string, userId: string): Promise<void> => {
-  if (!db) throw new Error('Firestore is not initialized');
+  if (isLocalMode()) {
+    const issues = getLocalIssues();
+    const index = issues.findIndex(i => i.id === issueId);
+    if (index !== -1) {
+      const voterIndex = issues[index].voters.indexOf(userId);
+      if (voterIndex !== -1) {
+        // Toggle off (unlike)
+        issues[index].voters.splice(voterIndex, 1);
+      } else {
+        // Toggle on (like)
+        issues[index].voters.push(userId);
+      }
+      issues[index].votesCount = issues[index].voters.length;
+      
+      // Recalculate priority score based on voters
+      if (issues[index].priorityScore !== undefined) {
+        const baseSeverity = issues[index].severity === 'Critical' ? 40 : issues[index].severity === 'High' ? 30 : issues[index].severity === 'Medium' ? 20 : 10;
+        issues[index].priorityScore = Math.min(99, baseSeverity + issues[index].votesCount + (issues[index].affectedCount || 1) / 10);
+      }
+
+      saveLocalIssues(issues);
+    }
+    return;
+  }
+
   try {
-    const issueRef = doc(db, 'issues', issueId);
+    const issueRef = doc(db!, 'issues', issueId);
     const snap = await getDoc(issueRef);
     if (!snap.exists()) return;
 
     const issue = snap.data() as Issue;
-    if (issue.voters.includes(userId)) {
-      // Already voted
-      return;
+    let updatedVoters: string[];
+    const voterIndex = issue.voters.indexOf(userId);
+    if (voterIndex !== -1) {
+      // Toggle off (unlike)
+      updatedVoters = issue.voters.filter(uid => uid !== userId);
+    } else {
+      // Toggle on (like)
+      updatedVoters = [...issue.voters, userId];
     }
-
-    const updatedVoters = [...issue.voters, userId];
+    
     await updateDoc(issueRef, {
       voters: updatedVoters,
       votesCount: updatedVoters.length,
       updatedAt: new Date().toISOString()
     });
-  } catch (err) {
-    handleDBError('supportIssue', err);
+  } catch (err: any) {
+    console.warn('[Community Hero] Firestore dbSupportIssue failed, falling back to LocalStorage:', err);
+    isFirebaseOffline = true;
+    const issues = getLocalIssues();
+    const index = issues.findIndex(i => i.id === issueId);
+    if (index !== -1) {
+      const voterIndex = issues[index].voters.indexOf(userId);
+      if (voterIndex !== -1) {
+        issues[index].voters.splice(voterIndex, 1);
+      } else {
+        issues[index].voters.push(userId);
+      }
+      issues[index].votesCount = issues[index].voters.length;
+      if (issues[index].priorityScore !== undefined) {
+        const baseSeverity = issues[index].severity === 'Critical' ? 40 : issues[index].severity === 'High' ? 30 : issues[index].severity === 'Medium' ? 20 : 10;
+        issues[index].priorityScore = Math.min(99, baseSeverity + issues[index].votesCount + (issues[index].affectedCount || 1) / 10);
+      }
+      saveLocalIssues(issues);
+    }
   }
 };
 
 /**
- * COMMENTS nested subcollection
+ * COMMENTS SERVICES
  */
 export const dbAddComment = async (issueId: string, comment: Omit<Comment, 'id' | 'createdAt'>): Promise<Comment> => {
-  if (!db) throw new Error('Firestore is not initialized');
+  if (isLocalMode()) {
+    initLocalStorageDb();
+    const localComments = JSON.parse(localStorage.getItem('ch_local_comments') || '{}');
+    if (!localComments[issueId]) localComments[issueId] = [];
+
+    const newComment: Comment = {
+      ...comment,
+      id: `c-${Date.now()}`,
+      createdAt: new Date().toISOString()
+    };
+    localComments[issueId].push(newComment);
+    localStorage.setItem('ch_local_comments', JSON.stringify(localComments));
+    return newComment;
+  }
+
   try {
-    const commentRef = doc(collection(db, `issues/${issueId}/comments`));
+    const commentRef = doc(collection(db!, `issues/${issueId}/comments`));
     const newComment: Comment = {
       ...comment,
       id: commentRef.id,
@@ -201,41 +636,36 @@ export const dbAddComment = async (issueId: string, comment: Omit<Comment, 'id' 
     };
     await setDoc(commentRef, newComment);
 
-    // Also update main Issue updatedAt timestamp
-    await updateDoc(doc(db, 'issues', issueId), {
+    await updateDoc(doc(db!, 'issues', issueId), {
       updatedAt: new Date().toISOString()
     });
 
-    // Notify issue reporter if they are not the comment author
-    const issueSnap = await getDoc(doc(db, 'issues', issueId));
-    if (issueSnap.exists()) {
-      const issueData = issueSnap.data() as Issue;
-      if (issueData.reporterId !== comment.userId) {
-        const notifRef = doc(collection(db, 'notifications'));
-        const notif: Notification = {
-          id: notifRef.id,
-          userId: issueData.reporterId,
-          title: 'New Discussion Comment',
-          message: `${comment.userName} commented on "${issueData.title}".`,
-          issueId,
-          type: 'Comment Added',
-          read: false,
-          createdAt: new Date().toISOString()
-        };
-        await setDoc(notifRef, notif);
-      }
-    }
-
     return newComment;
-  } catch (err) {
-    return handleDBError('addComment', err);
+  } catch (err: any) {
+    console.warn('[Community Hero] Firestore dbAddComment failed, falling back to LocalStorage:', err);
+    isFirebaseOffline = true;
+    const localComments = JSON.parse(localStorage.getItem('ch_local_comments') || '{}');
+    if (!localComments[issueId]) localComments[issueId] = [];
+    const newComment: Comment = {
+      ...comment,
+      id: `c-${Date.now()}`,
+      createdAt: new Date().toISOString()
+    };
+    localComments[issueId].push(newComment);
+    localStorage.setItem('ch_local_comments', JSON.stringify(localComments));
+    return newComment;
   }
 };
 
 export const dbGetComments = async (issueId: string): Promise<Comment[]> => {
-  if (!db) return [];
+  if (isLocalMode()) {
+    initLocalStorageDb();
+    const localComments = JSON.parse(localStorage.getItem('ch_local_comments') || '{}');
+    return localComments[issueId] || [];
+  }
+
   try {
-    const q = query(collection(db, `issues/${issueId}/comments`), orderBy('createdAt', 'asc'));
+    const q = query(collection(db!, `issues/${issueId}/comments`), orderBy('createdAt', 'asc'));
     const snap = await getDocs(q);
     const list: Comment[] = [];
     snap.forEach((docSnap) => {
@@ -243,17 +673,24 @@ export const dbGetComments = async (issueId: string): Promise<Comment[]> => {
     });
     return list;
   } catch (err) {
-    return handleDBError('getComments', err);
+    console.warn('Firestore comments load failed, falling back to local.');
+    const localComments = JSON.parse(localStorage.getItem('ch_local_comments') || '{}');
+    return localComments[issueId] || [];
   }
 };
 
 /**
- * ACTIVITY LOGS
+ * AUDIT TRAIL LOGS
  */
 export const dbGetActivityLogs = async (issueId: string): Promise<ActivityLog[]> => {
-  if (!db) return [];
+  if (isLocalMode()) {
+    initLocalStorageDb();
+    const localLogs = JSON.parse(localStorage.getItem('ch_local_logs') || '{}');
+    return localLogs[issueId] || [];
+  }
+
   try {
-    const q = query(collection(db, `issues/${issueId}/activityLogs`), orderBy('createdAt', 'desc'));
+    const q = query(collection(db!, `issues/${issueId}/activityLogs`), orderBy('createdAt', 'desc'));
     const snap = await getDocs(q);
     const list: ActivityLog[] = [];
     snap.forEach((docSnap) => {
@@ -261,20 +698,47 @@ export const dbGetActivityLogs = async (issueId: string): Promise<ActivityLog[]>
     });
     return list;
   } catch (err) {
-    return handleDBError('getActivityLogs', err);
+    const localLogs = JSON.parse(localStorage.getItem('ch_local_logs') || '{}');
+    return localLogs[issueId] || [];
   }
 };
 
 /**
- * VERIFICATION REQUESTS
+ * DOUBLE-BLIND COMMUNITY VERIFICATION
  */
 export const dbCreateVerificationRequest = async (
   issueId: string, 
   request: Omit<VerificationRequest, 'id' | 'votesVerified' | 'votesRejected' | 'voters' | 'createdAt' | 'status'>
 ): Promise<string> => {
-  if (!db) throw new Error('Firestore is not initialized');
+  if (isLocalMode()) {
+    initLocalStorageDb();
+    const localVReqs = JSON.parse(localStorage.getItem('ch_local_vreqs') || '{}');
+    if (!localVReqs[issueId]) localVReqs[issueId] = [];
+
+    const id = `vr-${Date.now()}`;
+    const newRequest: VerificationRequest = {
+      ...request,
+      id,
+      votesVerified: 0,
+      votesRejected: 0,
+      voters: {},
+      createdAt: new Date().toISOString(),
+      status: 'Pending'
+    };
+    localVReqs[issueId].unshift(newRequest);
+    localStorage.setItem('ch_local_vreqs', JSON.stringify(localVReqs));
+
+    // Update Issue status
+    await dbUpdateIssueStatus(issueId, 'Community Verification', request.officerId, request.officerName, {
+      afterImageUrl: request.afterImageUrl,
+      resolutionNotes: request.notes
+    });
+
+    return id;
+  }
+
   try {
-    const reqRef = doc(collection(db, `issues/${issueId}/verificationRequests`));
+    const reqRef = doc(collection(db!, `issues/${issueId}/verificationRequests`));
     const newRequest: VerificationRequest = {
       ...request,
       id: reqRef.id,
@@ -286,22 +750,56 @@ export const dbCreateVerificationRequest = async (
     };
     await setDoc(reqRef, newRequest);
 
-    // Update Issue status to 'Community Verification'
     await dbUpdateIssueStatus(issueId, 'Community Verification', request.officerId, request.officerName, {
       afterImageUrl: request.afterImageUrl,
       resolutionNotes: request.notes
     });
 
     return reqRef.id;
-  } catch (err) {
-    return handleDBError('createVerificationRequest', err);
+  } catch (err: any) {
+    console.warn('[Community Hero] Firestore dbCreateVerificationRequest failed, falling back to LocalStorage:', err);
+    isFirebaseOffline = true;
+    const localVReqs = JSON.parse(localStorage.getItem('ch_local_vreqs') || '{}');
+    if (!localVReqs[issueId]) localVReqs[issueId] = [];
+    const id = `vr-${Date.now()}`;
+    const newRequest: VerificationRequest = {
+      ...request,
+      id,
+      votesVerified: 0,
+      votesRejected: 0,
+      voters: {},
+      createdAt: new Date().toISOString(),
+      status: 'Pending'
+    };
+    localVReqs[issueId].unshift(newRequest);
+    localStorage.setItem('ch_local_vreqs', JSON.stringify(localVReqs));
+    
+    // Fallback status update
+    const issues = getLocalIssues();
+    const index = issues.findIndex(i => i.id === issueId);
+    if (index !== -1) {
+      issues[index] = {
+        ...issues[index],
+        status: 'Community Verification',
+        updatedAt: new Date().toISOString(),
+        afterImageUrl: request.afterImageUrl,
+        resolutionNotes: request.notes
+      };
+      saveLocalIssues(issues);
+    }
+    return id;
   }
 };
 
 export const dbGetVerificationRequests = async (issueId: string): Promise<VerificationRequest[]> => {
-  if (!db) return [];
+  if (isLocalMode()) {
+    initLocalStorageDb();
+    const localVReqs = JSON.parse(localStorage.getItem('ch_local_vreqs') || '{}');
+    return localVReqs[issueId] || [];
+  }
+
   try {
-    const q = query(collection(db, `issues/${issueId}/verificationRequests`), orderBy('createdAt', 'desc'));
+    const q = query(collection(db!, `issues/${issueId}/verificationRequests`), orderBy('createdAt', 'desc'));
     const snap = await getDocs(q);
     const list: VerificationRequest[] = [];
     snap.forEach((docSnap) => {
@@ -309,7 +807,8 @@ export const dbGetVerificationRequests = async (issueId: string): Promise<Verifi
     });
     return list;
   } catch (err) {
-    return handleDBError('getVerificationRequests', err);
+    const localVReqs = JSON.parse(localStorage.getItem('ch_local_vreqs') || '{}');
+    return localVReqs[issueId] || [];
   }
 };
 
@@ -319,17 +818,47 @@ export const dbVoteVerification = async (
   userId: string,
   verify: boolean // true = verify, false = dispute
 ): Promise<void> => {
-  if (!db) throw new Error('Firestore is not initialized');
+  if (isLocalMode()) {
+    initLocalStorageDb();
+    const localVReqs = JSON.parse(localStorage.getItem('ch_local_vreqs') || '{}');
+    const reqsList: VerificationRequest[] = localVReqs[issueId] || [];
+    const index = reqsList.findIndex(r => r.id === requestId);
+    if (index !== -1) {
+      const request = reqsList[index];
+      if (userId in request.voters) return; // already voted
+
+      request.voters[userId] = verify;
+      if (verify) {
+        request.votesVerified += 1;
+      } else {
+        request.votesRejected += 1;
+      }
+
+      if (request.votesVerified >= 3) {
+        request.status = 'Approved';
+        await dbUpdateIssueStatus(issueId, 'Verified', 'community', 'Community Verification Success', {
+          status: 'Verified'
+        });
+      } else if (request.votesRejected >= 2) {
+        request.status = 'Disputed';
+        await dbUpdateIssueStatus(issueId, 'Under Review', 'community', 'Community Dispute Initiated', {
+          status: 'Under Review'
+        });
+      }
+
+      localVReqs[issueId] = reqsList;
+      localStorage.setItem('ch_local_vreqs', JSON.stringify(localVReqs));
+    }
+    return;
+  }
+
   try {
-    const reqRef = doc(db, `issues/${issueId}/verificationRequests`, requestId);
+    const reqRef = doc(db!, `issues/${issueId}/verificationRequests`, requestId);
     const snap = await getDoc(reqRef);
     if (!snap.exists()) return;
 
     const request = snap.data() as VerificationRequest;
-    if (userId in request.voters) {
-      // Already voted
-      return;
-    }
+    if (userId in request.voters) return;
 
     const updatedVoters = { ...request.voters, [userId]: verify };
     let votesVerified = request.votesVerified;
@@ -342,18 +871,16 @@ export const dbVoteVerification = async (
     }
 
     let status = request.status;
-    // Simple double-blind threshold logic
-    // e.g. If verified gets to 3, approve automatically. If disputes reach 2, flag as disputed.
     if (votesVerified >= 3) {
       status = 'Approved';
-      // Mark parent Issue as verified and closed!
       await dbUpdateIssueStatus(issueId, 'Verified', 'community', 'Community Consensus', {
         status: 'Verified'
       });
     } else if (votesRejected >= 2) {
       status = 'Disputed';
-      // Put parent Issue back 'Under Review' so officers can re-inspect
-      await dbUpdateIssueStatus(issueId, 'Under Review', 'community', 'Community Rejection Audit');
+      await dbUpdateIssueStatus(issueId, 'Under Review', 'community', 'Community Rejection Audit', {
+        status: 'Under Review'
+      });
     }
 
     await updateDoc(reqRef, {
@@ -362,9 +889,42 @@ export const dbVoteVerification = async (
       votesRejected,
       status
     });
-
-  } catch (err) {
-    handleDBError('voteVerification', err);
+  } catch (err: any) {
+    console.warn('[Community Hero] Firestore dbVoteVerification failed, falling back to LocalStorage:', err);
+    isFirebaseOffline = true;
+    const localVReqs = JSON.parse(localStorage.getItem('ch_local_vreqs') || '{}');
+    const reqsList: VerificationRequest[] = localVReqs[issueId] || [];
+    const index = reqsList.findIndex(r => r.id === requestId);
+    if (index !== -1) {
+      const request = reqsList[index];
+      if (!(userId in request.voters)) {
+        request.voters[userId] = verify;
+        if (verify) {
+          request.votesVerified += 1;
+        } else {
+          request.votesRejected += 1;
+        }
+        if (request.votesVerified >= 3) {
+          request.status = 'Approved';
+          const issues = getLocalIssues();
+          const idx = issues.findIndex(i => i.id === issueId);
+          if (idx !== -1) {
+            issues[idx].status = 'Verified';
+            saveLocalIssues(issues);
+          }
+        } else if (request.votesRejected >= 2) {
+          request.status = 'Disputed';
+          const issues = getLocalIssues();
+          const idx = issues.findIndex(i => i.id === issueId);
+          if (idx !== -1) {
+            issues[idx].status = 'Under Review';
+            saveLocalIssues(issues);
+          }
+        }
+        localVReqs[issueId] = reqsList;
+        localStorage.setItem('ch_local_vreqs', JSON.stringify(localVReqs));
+      }
+    }
   }
 };
 
@@ -372,10 +932,14 @@ export const dbVoteVerification = async (
  * NOTIFICATIONS
  */
 export const dbGetMyNotifications = async (userId: string): Promise<Notification[]> => {
-  if (!db) return [];
+  if (isLocalMode()) {
+    const localNotifs: Notification[] = JSON.parse(localStorage.getItem('ch_local_notifs') || '[]');
+    return localNotifs.filter(n => n.userId === userId);
+  }
+
   try {
     const q = query(
-      collection(db, 'notifications'),
+      collection(db!, 'notifications'),
       where('userId', '==', userId),
       orderBy('createdAt', 'desc'),
       limit(25)
@@ -387,15 +951,32 @@ export const dbGetMyNotifications = async (userId: string): Promise<Notification
     });
     return list;
   } catch (err) {
-    return handleDBError('getMyNotifications', err);
+    const localNotifs: Notification[] = JSON.parse(localStorage.getItem('ch_local_notifs') || '[]');
+    return localNotifs.filter(n => n.userId === userId);
   }
 };
 
 export const dbMarkNotificationRead = async (id: string): Promise<void> => {
-  if (!db) return;
+  if (isLocalMode()) {
+    const localNotifs: Notification[] = JSON.parse(localStorage.getItem('ch_local_notifs') || '[]');
+    const index = localNotifs.findIndex(n => n.id === id);
+    if (index !== -1) {
+      localNotifs[index].read = true;
+      localStorage.setItem('ch_local_notifs', JSON.stringify(localNotifs));
+    }
+    return;
+  }
+
   try {
-    await updateDoc(doc(db, 'notifications', id), { read: true });
-  } catch (err) {
-    handleDBError('markNotificationRead', err);
+    await updateDoc(doc(db!, 'notifications', id), { read: true });
+  } catch (err: any) {
+    console.warn('[Community Hero] Firestore dbMarkNotificationRead failed, falling back to LocalStorage:', err);
+    isFirebaseOffline = true;
+    const localNotifs: Notification[] = JSON.parse(localStorage.getItem('ch_local_notifs') || '[]');
+    const index = localNotifs.findIndex(n => n.id === id);
+    if (index !== -1) {
+      localNotifs[index].read = true;
+      localStorage.setItem('ch_local_notifs', JSON.stringify(localNotifs));
+    }
   }
 };

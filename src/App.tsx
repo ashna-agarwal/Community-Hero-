@@ -24,6 +24,9 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { DiscoveryFeed } from './components/DiscoveryFeed';
 import { ReportIssueForm } from './components/ReportIssueForm';
+import { InteractiveMap } from './components/InteractiveMap';
+import { OfficerWorkspace } from './components/OfficerWorkspace';
+import { AdminPanel } from './components/AdminPanel';
 import { UserRole } from './types';
 
 function AppContent() {
@@ -31,6 +34,7 @@ function AppContent() {
     profile, 
     loginWithEmail, 
     registerWithEmail, 
+    loginWithGoogle,
     logout, 
     isSandboxMode, 
     setSandboxMode, 
@@ -128,9 +132,32 @@ function AppContent() {
             </div>
 
             {authError && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs flex items-center gap-2 mb-4" id="auth-error-box">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{authError}</span>
+              <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs flex flex-col gap-3 mb-5 shadow-xs" id="auth-error-box">
+                <div className="flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-600 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-red-800">Authentication Issue Detected</p>
+                    <p className="mt-1 leading-relaxed text-slate-600">
+                      {authError.includes('auth/operation-not-allowed') 
+                        ? 'Email/Password authentication is not yet enabled in your Firebase console. Please go to your Firebase Console -> Build -> Authentication -> Sign-in Method, and enable Email/Password.'
+                        : authError}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="pt-2 border-t border-red-100 flex flex-col gap-1.5">
+                  <p className="font-medium text-slate-500 text-[10px] uppercase tracking-wider">Hackathon Quick Bypass:</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSandboxRole('Citizen');
+                      setSandboxMode(true);
+                    }}
+                    className="w-full py-2 px-3 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold text-center transition-all duration-150 shadow-sm shadow-red-200"
+                  >
+                    ⚡ Launch Offline Sandbox Mode (No Setup Required)
+                  </button>
+                </div>
               </div>
             )}
 
@@ -187,6 +214,34 @@ function AppContent() {
                 {isRegistering ? 'Create Free Account' : 'Sign In'}
               </button>
             </form>
+
+            {/* Divider */}
+            <div className="relative my-4" id="auth-divider">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200"></div>
+              </div>
+              <div className="relative flex justify-center text-[10px] uppercase tracking-wider">
+                <span className="bg-white px-3 text-slate-400 font-bold">Or secure access via</span>
+              </div>
+            </div>
+
+            {/* Google Sign-In Button */}
+            <button
+              type="button"
+              onClick={async () => {
+                setAuthError(null);
+                try {
+                  await loginWithGoogle();
+                } catch (err: any) {
+                  setAuthError(err.message || 'Google Sign-In failed');
+                }
+              }}
+              className="w-full flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 hover:border-slate-300 font-bold py-2 rounded-lg text-xs transition-all duration-150 shadow-xs cursor-pointer"
+              id="google-auth-btn"
+            >
+              <Compass className="w-4 h-4 text-blue-600" />
+              <span>Continue with Google</span>
+            </button>
 
             <div className="mt-4 text-center" id="auth-switch-prompt">
               <button 
@@ -464,9 +519,12 @@ function AppContent() {
                   <h2 className="text-xl lg:text-2xl font-display font-extrabold text-slate-950">Interactive Heatmap</h2>
                   <p className="text-xs text-slate-500 mt-1">Live tracking of reported incidents using coordinates with customized status icons.</p>
                 </div>
-                <div className="h-[400px] w-full bg-slate-100 rounded-2xl border border-slate-200 flex items-center justify-center text-slate-400 text-xs font-medium">
-                  Map widget placeholder (Will be completed with custom markers and heatmaps in Feature 3)
-                </div>
+                <InteractiveMap 
+                  onViewIssue={(issueId) => {
+                    setSelectedIssueId(issueId);
+                    setActiveTab('feed');
+                  }} 
+                />
               </motion.div>
             )}
 
@@ -508,9 +566,7 @@ function AppContent() {
                   <h2 className="text-xl lg:text-2xl font-display font-extrabold text-slate-950">Officer Queue Workspace</h2>
                   <p className="text-xs text-slate-500 mt-1">View delegated incident assignments, manage statuses, and initiate community double-blind verification.</p>
                 </div>
-                <div className="p-8 bg-white border border-slate-100 rounded-2xl text-center text-slate-500 shadow-sm">
-                  Officer queue dashboard placeholder (Will be completed in Feature 5)
-                </div>
+                <OfficerWorkspace />
               </motion.div>
             )}
 
@@ -526,9 +582,7 @@ function AppContent() {
                   <h2 className="text-xl lg:text-2xl font-display font-extrabold text-slate-950">Admin Analytics Panel</h2>
                   <p className="text-xs text-slate-500 mt-1">High-level municipality statistics, response speed charts, department rankings, and mock database controllers.</p>
                 </div>
-                <div className="p-8 bg-white border border-slate-100 rounded-2xl text-center text-slate-500 shadow-sm">
-                  Admin Analytics panel placeholder (Will be completed in Feature 6)
-                </div>
+                <AdminPanel />
               </motion.div>
             )}
           </AnimatePresence>

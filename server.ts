@@ -81,6 +81,90 @@ async function startServer() {
     return aiInstance;
   }
 
+  // Helper to run local rule-based heuristic analysis
+  function runLocalHeuristicAnalysis(description: string | undefined, voiceType: string | undefined, existingIssues: any[]) {
+    const textForAnalysis = `${description || ''} ${voiceType ? 'voice report' : ''}`.toLowerCase();
+    let category = 'Other';
+    let department = 'City Code Enforcement';
+    let severity: 'Low' | 'Medium' | 'High' | 'Critical' = 'Medium';
+    let priority: 'Low' | 'Medium' | 'High' | 'Critical' = 'Medium';
+    let title = 'General Neighborhood Report';
+
+    if (textForAnalysis.includes('pothole') || textForAnalysis.includes('road') || textForAnalysis.includes('pavement') || textForAnalysis.includes('street')) {
+      category = 'Potholes & Roads';
+      department = 'Public Works Dept';
+      title = 'Street Repair Request';
+      severity = 'Medium';
+      priority = 'Medium';
+    } else if (textForAnalysis.includes('trash') || textForAnalysis.includes('garbage') || textForAnalysis.includes('waste') || textForAnalysis.includes('dump')) {
+      category = 'Waste & Sanitation';
+      department = 'Sanitation Department';
+      title = 'Debris Cleanup Required';
+      severity = 'Low';
+      priority = 'Medium';
+    } else if (textForAnalysis.includes('light') || textForAnalysis.includes('lamp') || textForAnalysis.includes('electricity') || textForAnalysis.includes('dark')) {
+      category = 'Streetlights & Electricity';
+      department = 'Traffic Engineering';
+      title = 'Broken Streetlight Fix';
+      severity = 'Medium';
+      priority = 'Medium';
+    } else if (textForAnalysis.includes('leak') || textForAnalysis.includes('water') || textForAnalysis.includes('sewage') || textForAnalysis.includes('pipe')) {
+      category = 'Water & Sewage';
+      department = 'Water & Sewage Authority';
+      title = 'Water Service Damage';
+      severity = 'High';
+      priority = 'High';
+    } else if (textForAnalysis.includes('tree') || textForAnalysis.includes('park') || textForAnalysis.includes('playground') || textForAnalysis.includes('bench')) {
+      category = 'Public Parks';
+      department = 'Parks & Recreation';
+      title = 'Park Maintenance Task';
+      severity = 'Low';
+      priority = 'Low';
+    } else if (textForAnalysis.includes('graffiti') || textForAnalysis.includes('vandal') || textForAnalysis.includes('spray')) {
+      category = 'Vandalism & Graffiti';
+      department = 'City Code Enforcement';
+      title = 'Graffiti Abatement';
+      severity = 'Low';
+      priority = 'Low';
+    }
+
+    if (textForAnalysis.includes('urgent') || textForAnalysis.includes('danger') || textForAnalysis.includes('accident') || textForAnalysis.includes('critical') || textForAnalysis.includes('hazard')) {
+      severity = 'Critical';
+      priority = 'Critical';
+    }
+
+    // Check duplicate fallback (if any match title/category closely)
+    let isDuplicate = false;
+    let duplicateIssueId = '';
+    let duplicateExplanation = '';
+
+    if (existingIssues && Array.isArray(existingIssues)) {
+      const match = existingIssues.find((issue: any) => 
+        issue.category === category && 
+        (issue.title.toLowerCase().includes(title.toLowerCase()) || 
+         issue.description.toLowerCase().includes(description?.toLowerCase() || 'xyz'))
+      );
+      if (match) {
+        isDuplicate = true;
+        duplicateIssueId = match.id;
+        duplicateExplanation = `This report matches another ongoing issue "${match.title}" reported nearby.`;
+      }
+    }
+
+    return {
+      title,
+      description: description || 'No voice note transcription or text provided. Local heuristics analyzed general markers.',
+      category,
+      department,
+      severity,
+      priority,
+      isDuplicate,
+      duplicateIssueId,
+      duplicateExplanation,
+      fallbackMode: true
+    };
+  }
+
   // AI analysis route using Gemini 2.5 Flash
   app.post('/api/ai/analyze', async (req, res) => {
     const { description, imageData, imageType, voiceData, voiceType, existingIssues } = req.body;
@@ -90,87 +174,8 @@ async function startServer() {
     // Fallback: If Gemini API Key is missing or invalid, execute smart heuristic matching
     if (!ai) {
       console.warn('[Community Hero] Gemini API Key not found. Falling back to local heuristic analysis.');
-      
-      const textForAnalysis = `${description || ''} ${voiceType ? 'voice report' : ''}`.toLowerCase();
-      let category = 'Other';
-      let department = 'City Code Enforcement';
-      let severity: 'Low' | 'Medium' | 'High' | 'Critical' = 'Medium';
-      let priority: 'Low' | 'Medium' | 'High' | 'Critical' = 'Medium';
-      let title = 'General Neighborhood Report';
-
-      if (textForAnalysis.includes('pothole') || textForAnalysis.includes('road') || textForAnalysis.includes('pavement') || textForAnalysis.includes('street')) {
-        category = 'Potholes & Roads';
-        department = 'Public Works Dept';
-        title = 'Street Repair Request';
-        severity = 'Medium';
-        priority = 'Medium';
-      } else if (textForAnalysis.includes('trash') || textForAnalysis.includes('garbage') || textForAnalysis.includes('waste') || textForAnalysis.includes('dump')) {
-        category = 'Waste & Sanitation';
-        department = 'Sanitation Department';
-        title = 'Debris Cleanup Required';
-        severity = 'Low';
-        priority = 'Medium';
-      } else if (textForAnalysis.includes('light') || textForAnalysis.includes('lamp') || textForAnalysis.includes('electricity') || textForAnalysis.includes('dark')) {
-        category = 'Streetlights & Electricity';
-        department = 'Traffic Engineering';
-        title = 'Broken Streetlight Fix';
-        severity = 'Medium';
-        priority = 'Medium';
-      } else if (textForAnalysis.includes('leak') || textForAnalysis.includes('water') || textForAnalysis.includes('sewage') || textForAnalysis.includes('pipe')) {
-        category = 'Water & Sewage';
-        department = 'Water & Sewage Authority';
-        title = 'Water Service Damage';
-        severity = 'High';
-        priority = 'High';
-      } else if (textForAnalysis.includes('tree') || textForAnalysis.includes('park') || textForAnalysis.includes('playground') || textForAnalysis.includes('bench')) {
-        category = 'Public Parks';
-        department = 'Parks & Recreation';
-        title = 'Park Maintenance Task';
-        severity = 'Low';
-        priority = 'Low';
-      } else if (textForAnalysis.includes('graffiti') || textForAnalysis.includes('vandal') || textForAnalysis.includes('spray')) {
-        category = 'Vandalism & Graffiti';
-        department = 'City Code Enforcement';
-        title = 'Graffiti Abatement';
-        severity = 'Low';
-        priority = 'Low';
-      }
-
-      if (textForAnalysis.includes('urgent') || textForAnalysis.includes('danger') || textForAnalysis.includes('accident') || textForAnalysis.includes('critical') || textForAnalysis.includes('hazard')) {
-        severity = 'Critical';
-        priority = 'Critical';
-      }
-
-      // Check duplicate fallback (if any match title/category closely)
-      let isDuplicate = false;
-      let duplicateIssueId = '';
-      let duplicateExplanation = '';
-
-      if (existingIssues && Array.isArray(existingIssues)) {
-        const match = existingIssues.find((issue: any) => 
-          issue.category === category && 
-          (issue.title.toLowerCase().includes(title.toLowerCase()) || 
-           issue.description.toLowerCase().includes(description?.toLowerCase() || 'xyz'))
-        );
-        if (match) {
-          isDuplicate = true;
-          duplicateIssueId = match.id;
-          duplicateExplanation = `This report matches another ongoing issue "${match.title}" reported nearby.`;
-        }
-      }
-
-      res.json({
-        title,
-        description: description || 'No voice note transcription or text provided. Local heuristics analyzed general markers.',
-        category,
-        department,
-        severity,
-        priority,
-        isDuplicate,
-        duplicateIssueId,
-        duplicateExplanation,
-        fallbackMode: true
-      });
+      const fallbackResult = runLocalHeuristicAnalysis(description, voiceType, existingIssues || []);
+      res.json(fallbackResult);
       return;
     }
 
@@ -252,8 +257,14 @@ async function startServer() {
       res.json(parsedAnalysis);
 
     } catch (err: any) {
-      console.error('[Community Hero] Gemini API Error:', err);
-      res.status(500).json({ error: 'AI analysis failed: ' + err.message });
+      console.warn('[Community Hero] Gemini API Error (e.g. overload or rate limit). Falling back to local heuristic analysis:', err);
+      try {
+        const fallbackResult = runLocalHeuristicAnalysis(description, voiceType, existingIssues || []);
+        res.json(fallbackResult);
+      } catch (innerErr: any) {
+        console.error('[Community Hero] Critical failure in local fallback analysis:', innerErr);
+        res.status(500).json({ error: 'AI analysis and fallback both failed: ' + innerErr.message });
+      }
     }
   });
 

@@ -57,6 +57,16 @@ export interface Issue {
   resolutionNotes?: string;
   createdAt: string;
   updatedAt: string;
+  
+  // GAP Gaps Specific additions
+  priorityScore?: number;            // Dynamic Civic Priority Score (0-100)
+  credibilityScore?: number;         // AI Trust Engine Score (0-100)
+  credibilityExplanation?: string;   // Image authenticity analysis explanation
+  escalationLevel?: number;          // 0: Normal, 1: Senior Officer, 2: Department Head, 3: District Authority, 4: Public Alert
+  escalationDate?: string;           // Timestamp of last escalation action
+  isMerged?: boolean;                // Flag for duplicate aggregator
+  mergedWithId?: string;             // Parent issue ID if merged
+  affectedCount?: number;            // Counter representing original duplicates + supporters
 }
 
 export interface Comment {

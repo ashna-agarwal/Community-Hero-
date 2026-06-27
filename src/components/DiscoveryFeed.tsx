@@ -22,7 +22,12 @@ import {
   Award,
   Volume2,
   Info,
-  Shield
+  Shield,
+  Users,
+  Heart,
+  Wrench,
+  DollarSign,
+  Coins
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -33,9 +38,12 @@ import {
   dbGetActivityLogs, 
   dbGetVerificationRequests, 
   dbVoteVerification,
-  dbUpdateIssueStatus
+  dbUpdateIssueStatus,
+  dbAddCommunityPledge,
+  dbUpdateMaterialsEstimate
 } from '../services/dbService';
 import { Issue, Comment, ActivityLog, VerificationRequest } from '../types';
+import { getIssueActionClassification, ActionClassification } from '../services/classificationService';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface DiscoveryFeedProps {
@@ -57,6 +65,7 @@ export const DiscoveryFeed: React.FC<DiscoveryFeedProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
+  const [selectedActionFilter, setSelectedActionFilter] = useState<string>('All');
 
   // Detailed view states
   const [activeIssue, setActiveIssue] = useState<Issue | null>(null);
@@ -66,6 +75,19 @@ export const DiscoveryFeed: React.FC<DiscoveryFeedProps> = ({
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [verificationRequest, setVerificationRequest] = useState<VerificationRequest | null>(null);
   const [isVotingConsensus, setIsVotingConsensus] = useState(false);
+
+  // GAPS solved states
+  const [pledgeType, setPledgeType] = useState<'labor' | 'supplies' | 'cleanup' | 'donation'>('labor');
+  const [pledgeHours, setPledgeHours] = useState<number>(3);
+  const [pledgeNotes, setPledgeNotes] = useState('');
+  const [showPledgeForm, setShowPledgeForm] = useState(false);
+  const [isPledging, setIsPledging] = useState(false);
+
+  const [showEstimateForm, setShowEstimateForm] = useState(false);
+  const [suggestedItemName, setSuggestedItemName] = useState('');
+  const [suggestedItemCost, setSuggestedItemCost] = useState('');
+  const [suggestedItemQty, setSuggestedItemQty] = useState('1');
+  const [suggestedItemUnit, setSuggestedItemUnit] = useState('units');
 
   // Fetch all issues
   const loadIssues = async () => {
@@ -117,21 +139,145 @@ export const DiscoveryFeed: React.FC<DiscoveryFeedProps> = ({
   const handleSupport = async (issueId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!profile) return;
+
+    // Save previous state for rollback on error
+    const previousIssues = [...issues];
+    const previousActiveIssue = activeIssue ? { ...activeIssue } : null;
+
+    // Optimistically update issues state
+    const updatedIssues = issues.map(issue => {
+      if (issue.id === issueId) {
+        const isVoted = issue.voters.includes(profile.uid);
+        const nextVoters = isVoted 
+          ? issue.voters.filter(uid => uid !== profile.uid) 
+          : [...issue.voters, profile.uid];
+        return {
+          ...issue,
+          voters: nextVoters,
+          votesCount: nextVoters.length
+        };
+      }
+      return issue;
+    });
+    setIssues(updatedIssues);
+
+    // Optimistically update active issue if currently loaded
+    if (activeIssue && activeIssue.id === issueId) {
+      const isVoted = activeIssue.voters.includes(profile.uid);
+      const nextVoters = isVoted
+        ? activeIssue.voters.filter(uid => uid !== profile.uid)
+        : [...activeIssue.voters, profile.uid];
+      setActiveIssue({
+        ...activeIssue,
+        voters: nextVoters,
+        votesCount: nextVoters.length
+      });
+    }
+
     try {
       await dbSupportIssue(issueId, profile.uid);
       // Award minor reward points for civic support
       await updateReputation(2);
       await addBadge('Active Supporter');
-      loadIssues();
       
-      // Refresh active issue if open
+      // Quietly fetch the authoritative server state without triggering loading spinners
+      const data = await dbGetIssues();
+      setIssues(data);
       if (activeIssue && activeIssue.id === issueId) {
-        const updatedIssues = await dbGetIssues();
-        const found = updatedIssues.find(i => i.id === issueId);
+        const found = data.find(i => i.id === issueId);
         if (found) setActiveIssue(found);
       }
     } catch (err) {
-      console.error(err);
+      console.error('[Community Hero] Support transaction failed. Rolling back optimistic states:', err);
+      // Rollback to previous state on failure
+      setIssues(previousIssues);
+      if (previousActiveIssue) {
+        setActiveIssue(previousActiveIssue);
+      }
+    }
+  };
+
+  const handleCreatePledge = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile || !activeIssue) return;
+    setIsPledging(true);
+    try {
+      const pledge = {
+        userId: profile.uid,
+        userName: profile.name,
+        hours: ['labor', 'cleanup'].includes(pledgeType) ? pledgeHours : undefined,
+        pledgeType,
+        notes: pledgeNotes
+      };
+      await dbAddCommunityPledge(activeIssue.id, pledge);
+      await updateReputation(15);
+      await addBadge('Local Activist');
+      
+      // Reset form
+      setPledgeNotes('');
+      setShowPledgeForm(false);
+      
+      // Refresh current issue and list
+      const data = await dbGetIssues();
+      setIssues(data);
+      const found = data.find(i => i.id === activeIssue.id);
+      if (found) {
+        setActiveIssue(found);
+        const logList = await dbGetActivityLogs(found.id);
+        setLogs(logList);
+      }
+    } catch (err) {
+      console.error('Error creating pledge:', err);
+    } finally {
+      setIsPledging(false);
+    }
+  };
+
+  const handleProposeMaterialItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile || !activeIssue || !suggestedItemName.trim() || !suggestedItemCost.trim()) return;
+    
+    try {
+      const unitCost = parseFloat(suggestedItemCost);
+      const qty = parseFloat(suggestedItemQty) || 1;
+      if (isNaN(unitCost)) return;
+
+      const currentEstimate = activeIssue.materialsEstimate || { cost: 0, items: [] };
+      const newItem = {
+        name: suggestedItemName,
+        qty,
+        unit: suggestedItemUnit,
+        cost: unitCost * qty
+      };
+      
+      const updatedItems = [...currentEstimate.items, newItem];
+      const updatedCost = updatedItems.reduce((acc, curr) => acc + curr.cost, 0);
+      
+      const newEstimate = {
+        cost: updatedCost,
+        items: updatedItems
+      };
+
+      await dbUpdateMaterialsEstimate(activeIssue.id, newEstimate);
+      await updateReputation(5);
+
+      // Reset Form
+      setSuggestedItemName('');
+      setSuggestedItemCost('');
+      setSuggestedItemQty('1');
+      setShowEstimateForm(false);
+
+      // Refresh current issue and list
+      const data = await dbGetIssues();
+      setIssues(data);
+      const found = data.find(i => i.id === activeIssue.id);
+      if (found) {
+        setActiveIssue(found);
+        const logList = await dbGetActivityLogs(found.id);
+        setLogs(logList);
+      }
+    } catch (err) {
+      console.error('Error proposing material item:', err);
     }
   };
 
@@ -214,7 +360,10 @@ export const DiscoveryFeed: React.FC<DiscoveryFeedProps> = ({
     const matchesCategory = selectedCategory === 'All' || issue.category === selectedCategory;
     const matchesStatus = selectedStatus === 'All' || issue.status === selectedStatus;
 
-    return matchesSearch && matchesCategory && matchesStatus;
+    const actionDetail = getIssueActionClassification(issue);
+    const matchesAction = selectedActionFilter === 'All' || actionDetail.status === selectedActionFilter;
+
+    return matchesSearch && matchesCategory && matchesStatus && matchesAction;
   });
 
   const getStatusBadgeClass = (status: Issue['status']) => {
@@ -243,12 +392,12 @@ export const DiscoveryFeed: React.FC<DiscoveryFeedProps> = ({
   };
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-12 gap-6" id="discovery-grid-wrapper">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6" id="discovery-grid-wrapper">
       
-      {/* LEFT OR MAIN: Issue Catalog Feed (xl:col-span-7) */}
-      <div className={`xl:col-span-7 space-y-4 ${activeIssue ? 'hidden xl:block' : 'block'}`} id="issues-list-section">
+      {/* LEFT OR MAIN: Issue Catalog Feed (lg:col-span-7) */}
+      <div className={`lg:col-span-7 space-y-3 sm:space-y-4 ${activeIssue ? 'hidden lg:block' : 'block'}`} id="issues-list-section">
         {/* Filter bar card */}
-        <div className="bg-white border border-slate-100 rounded-2xl p-4 shadow-xs space-y-3" id="feed-filter-card">
+        <div className="bg-white border border-slate-100 rounded-2xl p-3 sm:p-4 shadow-xs space-y-2.5 sm:space-y-3" id="feed-filter-card">
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -263,22 +412,23 @@ export const DiscoveryFeed: React.FC<DiscoveryFeedProps> = ({
             {profile?.role === 'Citizen' && (
               <button 
                 onClick={onReportNew}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shrink-0 transition-all shadow-xs"
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-2.5 sm:px-3 py-2 rounded-xl text-xs flex items-center gap-1.5 shrink-0 transition-all shadow-xs"
               >
                 <Plus className="w-3.5 h-3.5" />
-                Report Issue
+                <span className="hidden sm:inline">Report Issue</span>
+                <span className="inline sm:hidden">Report</span>
               </button>
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2 pt-1" id="filter-pill-selectors">
+          <div className="flex flex-wrap items-center gap-2 pt-1" id="filter-pill-selectors">
             {/* Category Select */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Category:</span>
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 shrink-0">Category:</span>
               <select 
                 value={selectedCategory} 
                 onChange={(e) => setSelectedCategory(e.target.value)}
-                className="bg-slate-50 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg px-2 py-1"
+                className="bg-slate-50 border border-slate-200 text-slate-600 text-[10px] sm:text-[11px] font-semibold rounded-lg px-1.5 py-1"
               >
                 <option value="All">All Categories</option>
                 <option value="Potholes & Roads">Potholes & Roads</option>
@@ -292,12 +442,12 @@ export const DiscoveryFeed: React.FC<DiscoveryFeedProps> = ({
             </div>
 
             {/* Status Select */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Status:</span>
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 shrink-0">Status:</span>
               <select 
                 value={selectedStatus} 
                 onChange={(e) => setSelectedStatus(e.target.value)}
-                className="bg-slate-50 border border-slate-200 text-slate-600 text-[11px] font-semibold rounded-lg px-2 py-1"
+                className="bg-slate-50 border border-slate-200 text-slate-600 text-[10px] sm:text-[11px] font-semibold rounded-lg px-1.5 py-1"
               >
                 <option value="All">All Statuses</option>
                 <option value="Submitted">Submitted</option>
@@ -307,6 +457,21 @@ export const DiscoveryFeed: React.FC<DiscoveryFeedProps> = ({
                 <option value="Community Verification">Community Verification</option>
                 <option value="Verified">Verified</option>
                 <option value="Closed">Closed</option>
+              </select>
+            </div>
+
+            {/* Action Responsiveness Select */}
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 shrink-0">Action:</span>
+              <select 
+                value={selectedActionFilter} 
+                onChange={(e) => setSelectedActionFilter(e.target.value)}
+                className="bg-slate-50 border border-slate-200 text-slate-600 text-[10px] sm:text-[11px] font-semibold rounded-lg px-1.5 py-1"
+              >
+                <option value="All">All Actions</option>
+                <option value="In the Works">In the Works (Active)</option>
+                <option value="Action Pending">Action Pending</option>
+                <option value="Ignored / Delayed">Ignored / Delayed</option>
               </select>
             </div>
           </div>
@@ -334,13 +499,13 @@ export const DiscoveryFeed: React.FC<DiscoveryFeedProps> = ({
               <div 
                 key={issue.id}
                 onClick={() => handleSelectIssue(issue)}
-                className={`p-4 bg-white border rounded-2xl shadow-xs transition-all duration-200 cursor-pointer text-left hover:border-blue-400 hover:shadow-md flex gap-4 ${
+                className={`p-3 sm:p-4 bg-white border rounded-2xl shadow-xs transition-all duration-200 cursor-pointer text-left hover:border-blue-400 hover:shadow-md flex gap-3 sm:gap-4 ${
                   activeIssue?.id === issue.id ? 'border-blue-500 ring-2 ring-blue-50/50' : 'border-slate-100'
                 }`}
               >
                 {/* Photo thumbnail */}
                 {issue.imageUrl ? (
-                  <div className="w-20 h-20 bg-slate-100 rounded-xl shrink-0 overflow-hidden border border-slate-200/50">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-100 rounded-xl shrink-0 overflow-hidden border border-slate-200/50">
                     <img 
                       src={issue.imageUrl} 
                       alt="issue thumbnail" 
@@ -348,8 +513,8 @@ export const DiscoveryFeed: React.FC<DiscoveryFeedProps> = ({
                     />
                   </div>
                 ) : (
-                  <div className="w-20 h-20 bg-slate-50 rounded-xl shrink-0 flex items-center justify-center text-slate-300 border border-slate-200/50">
-                    <MapPin className="w-6 h-6" />
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-50 rounded-xl shrink-0 flex items-center justify-center text-slate-300 border border-slate-200/50">
+                    <MapPin className="w-5 h-5 sm:w-6 h-6" />
                   </div>
                 )}
 
@@ -363,30 +528,43 @@ export const DiscoveryFeed: React.FC<DiscoveryFeedProps> = ({
                       <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-semibold ${getSeverityBadgeClass(issue.severity)}`}>
                         {issue.severity}
                       </span>
-                      <span className="text-[10px] text-slate-400 font-mono truncate max-w-[120px] ml-auto">
+                      <span className="text-[9px] sm:text-[10px] text-slate-400 font-mono truncate max-w-[100px] sm:max-w-[120px] ml-auto">
                         #{issue.id.slice(0, 6)}
                       </span>
                     </div>
 
-                    <h3 className="text-sm font-bold text-slate-900 mt-1.5 truncate">
+                    <h3 className="text-xs sm:text-sm font-bold text-slate-900 mt-1 sm:mt-1.5 truncate">
                       {issue.title}
                     </h3>
                     
-                    <p className="text-xs text-slate-500 line-clamp-1 mt-1 leading-normal">
+                    <p className="text-[11px] sm:text-xs text-slate-500 line-clamp-1 mt-0.5 sm:mt-1 leading-normal">
                       {issue.description}
                     </p>
+
+                    {/* Dynamic Action State Responsiveness Indicator */}
+                    {(() => {
+                      const action = getIssueActionClassification(issue);
+                      return (
+                        <div className={`mt-2 flex items-center gap-1 sm:gap-1.5 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-lg border ${action.bgColor} ${action.textColor} text-[9px] sm:text-[10px] font-semibold w-fit max-w-full`}>
+                          <span className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full ${action.badgeColor}`} />
+                          <span className="shrink-0">{action.label}</span>
+                          <span className="text-slate-300 font-normal">|</span>
+                          <span className="opacity-85 font-normal truncate">{action.reason}</span>
+                        </div>
+                      );
+                    })()}
                   </div>
 
-                  <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2 border-t border-slate-50 pt-2">
-                    <div className="flex items-center gap-1">
-                      <Building className="w-3.5 h-3.5" />
-                      <span className="font-semibold text-slate-500 truncate max-w-[120px]">{issue.department}</span>
+                  <div className="flex items-center justify-between text-[9px] sm:text-[10px] text-slate-400 mt-2 border-t border-slate-50 pt-2">
+                    <div className="flex items-center gap-1 min-w-0">
+                      <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="font-semibold text-slate-500 truncate max-w-[80px] sm:max-w-[120px]">{issue.department}</span>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <button 
                         onClick={(e) => handleSupport(issue.id, e)}
-                        className={`flex items-center gap-1 py-0.5 px-2 rounded-md font-semibold transition-all ${
+                        className={`flex items-center gap-1 py-0.5 px-1.5 sm:px-2 rounded-md font-semibold transition-all ${
                           profile && issue.voters.includes(profile.uid)
                             ? 'bg-blue-100 text-blue-700'
                             : 'bg-slate-100 hover:bg-slate-200 text-slate-500'
@@ -405,8 +583,8 @@ export const DiscoveryFeed: React.FC<DiscoveryFeedProps> = ({
         )}
       </div>
 
-      {/* RIGHT: Detailed Inspector panel (xl:col-span-5) */}
-      <div className={`xl:col-span-5 ${activeIssue ? 'block' : 'hidden xl:block'}`} id="issue-inspector-section">
+      {/* RIGHT: Detailed Inspector panel (lg:col-span-5) */}
+      <div className={`lg:col-span-5 ${activeIssue ? 'block' : 'hidden lg:block'}`} id="issue-inspector-section">
         <AnimatePresence mode="wait">
           {activeIssue ? (
             <motion.div 
@@ -457,6 +635,100 @@ export const DiscoveryFeed: React.FC<DiscoveryFeedProps> = ({
                     <span className="truncate font-semibold">{activeIssue.address}</span>
                   </div>
                 </div>
+
+                {/* INCIDENT ACTION TAKEN & RESPONSIVENESS AUDIT */}
+                {(() => {
+                  const action = getIssueActionClassification(activeIssue);
+                  const isOfficerOrAdmin = profile && ['Officer', 'Department Head', 'Super Admin'].includes(profile.role);
+                  const needsSelfAssignment = !activeIssue.assignedOfficerId && !['Resolved', 'Verified', 'Closed'].includes(activeIssue.status);
+
+                  const handleSelfAssign = async () => {
+                    if (!profile) return;
+                    try {
+                      await dbUpdateIssueStatus(activeIssue.id, 'In Progress', profile.uid, profile.name, {
+                        assignedOfficerId: profile.uid,
+                        assignedOfficerName: profile.name
+                      });
+                      // Update local states
+                      const updated: Issue = {
+                        ...activeIssue,
+                        status: 'In Progress' as const,
+                        assignedOfficerId: profile.uid,
+                        assignedOfficerName: profile.name,
+                        updatedAt: new Date().toISOString()
+                      };
+                      setActiveIssue(updated);
+                      // Refresh full issues list
+                      const list = await dbGetIssues();
+                      setIssues(list);
+                      alert("Successfully self-assigned incident and updated status to [In Progress]. This is now classified as 'In the Works'.");
+                    } catch (err) {
+                      console.error(err);
+                      alert("Self-assignment failed.");
+                    }
+                  };
+
+                  return (
+                    <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 space-y-3" id="action-responsiveness-audit-card">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                        <span className="text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                          <Shield className="w-4 h-4 text-blue-500" />
+                          Responsiveness Audit
+                        </span>
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${action.textColor} ${action.bgColor} border border-slate-200/50`}>
+                          {action.status}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[10px] text-slate-500 font-bold">
+                          <span>Action Progression Speed</span>
+                          <span className={action.textColor}>{action.progressPercent}%</span>
+                        </div>
+                        <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              action.status === 'In the Works' ? 'bg-emerald-500' : action.status === 'Action Pending' ? 'bg-amber-500' : 'bg-rose-500'
+                            }`}
+                            style={{ width: `${action.progressPercent}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="bg-white p-2.5 rounded-lg border border-slate-100 text-[11px] space-y-1.5">
+                        <p className="font-bold text-slate-800 leading-normal">{action.label}</p>
+                        <p className="text-slate-500 leading-relaxed font-medium">{action.reason}</p>
+                      </div>
+
+                      {/* Audit parameters table */}
+                      <div className="grid grid-cols-2 gap-2 text-[10px] font-semibold text-slate-500">
+                        <div className="bg-white p-2 rounded-lg border border-slate-100 flex flex-col justify-between">
+                          <span className="text-slate-400 block font-bold text-[8px] uppercase">Officer Dispatched</span>
+                          <span className={activeIssue.assignedOfficerId ? "text-emerald-700 mt-1" : "text-slate-700 mt-1"}>
+                            {activeIssue.assignedOfficerName ? `✓ ${activeIssue.assignedOfficerName}` : "✗ Pending Assignment"}
+                          </span>
+                        </div>
+                        <div className="bg-white p-2 rounded-lg border border-slate-100 flex flex-col justify-between">
+                          <span className="text-slate-400 block font-bold text-[8px] uppercase">Bureaucratic Delay</span>
+                          <span className={action.status === 'Ignored / Delayed' ? "text-red-700 font-bold mt-1" : "text-slate-700 mt-1"}>
+                            {action.status === 'Ignored / Delayed' ? "⚠️ Delay Detected" : "✓ Within Expected SLA"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Interactive Field Action for Officers to dispatch themselves */}
+                      {isOfficerOrAdmin && needsSelfAssignment && (
+                        <button
+                          onClick={handleSelfAssign}
+                          className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Wrench className="w-3.5 h-3.5" />
+                          Intervene Now: Self-Assign Issue
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* GAP 2: COMMUNITY IMPACT AGGREGATOR */}
                 {activeIssue.isMerged && (
@@ -599,6 +871,234 @@ export const DiscoveryFeed: React.FC<DiscoveryFeedProps> = ({
                       );
                     }
                   })()}
+                </div>
+
+                {/* DIFFERENTIAL 1: AI MATERIALS & COST ESTIMATOR (GAP: Municipal feasibility blind spot) */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3" id="ai-materials-estimator-panel">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Coins className="w-4 h-4 text-emerald-600" />
+                      <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">AI Material & Cost Estimator</span>
+                    </div>
+                    <span className="text-xs font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                      Budgeted: ₹{activeIssue.materialsEstimate?.cost || 450}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-normal">
+                    AI scanned the complaint description and generated a municipal resource plan. Citizens can audit the list and suggest cheaper local suppliers to combat tax markups.
+                  </p>
+
+                  {/* Materials breakdown */}
+                  <div className="bg-white rounded-lg border border-slate-100 overflow-hidden text-[11px]">
+                    <table className="w-full text-left divide-y divide-slate-100">
+                      <thead className="bg-slate-50 text-[10px] font-bold text-slate-400 uppercase">
+                        <tr>
+                          <th className="px-3 py-1.5">Resource / Item</th>
+                          <th className="px-3 py-1.5 text-center">Qty</th>
+                          <th className="px-3 py-1.5 text-right">Est Cost</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700">
+                        {(activeIssue.materialsEstimate?.items || [
+                          { name: 'Standard patching compound & tar', qty: 4, unit: 'bags', cost: 160 },
+                          { name: 'Basic city worker crew (2 hours)', qty: 2, unit: 'hrs', cost: 200 },
+                          { name: 'Safety cones & road signage hire', qty: 1, unit: 'day', cost: 90 }
+                        ]).map((item, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/50">
+                            <td className="px-3 py-1.5 font-medium">{item.name}</td>
+                            <td className="px-3 py-1.5 text-center text-slate-500">{item.qty} {item.unit}</td>
+                            <td className="px-3 py-1.5 text-right font-semibold text-slate-900">₹{item.cost}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Suggest adjustment form */}
+                  {showEstimateForm ? (
+                    <form onSubmit={handleProposeMaterialItem} className="bg-white p-3 rounded-lg border border-slate-200/80 space-y-2 text-xs">
+                      <div className="flex justify-between items-center pb-1 border-b border-slate-100">
+                        <span className="font-bold text-slate-800">Propose Lower Contractor Rate / Alternative Supplier</span>
+                        <button type="button" onClick={() => setShowEstimateForm(false)} className="text-slate-400 hover:text-slate-600">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase block">Supplier Item Name</label>
+                          <input 
+                            type="text" 
+                            required
+                            placeholder="e.g. Local Hardware asphalt bags" 
+                            value={suggestedItemName}
+                            onChange={(e) => setSuggestedItemName(e.target.value)}
+                            className="w-full border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-hidden"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase block">Unit Price (₹)</label>
+                          <input 
+                            type="number" 
+                            required
+                            placeholder="e.g. 500" 
+                            value={suggestedItemCost}
+                            onChange={(e) => setSuggestedItemCost(e.target.value)}
+                            className="w-full border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-hidden"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase block">Quantity Needed</label>
+                          <input 
+                            type="number" 
+                            required
+                            placeholder="1" 
+                            value={suggestedItemQty}
+                            onChange={(e) => setSuggestedItemQty(e.target.value)}
+                            className="w-full border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-hidden"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-bold text-slate-400 uppercase block">Unit type</label>
+                          <input 
+                            type="text" 
+                            placeholder="e.g. bags / days" 
+                            value={suggestedItemUnit}
+                            onChange={(e) => setSuggestedItemUnit(e.target.value)}
+                            className="w-full border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-hidden"
+                          />
+                        </div>
+                      </div>
+                      <button type="submit" className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded text-center transition-all">
+                        ✓ Inject Cheaper Bid & Recalculate
+                      </button>
+                    </form>
+                  ) : (
+                    <button 
+                      type="button" 
+                      onClick={() => setShowEstimateForm(true)}
+                      className="w-full py-1.5 border border-dashed border-slate-300 hover:border-emerald-500 text-slate-600 hover:text-emerald-700 font-semibold rounded-lg text-[10px] text-center flex items-center justify-center gap-1 transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Flag Municipal Overprice / Add Local Supplier Bid
+                    </button>
+                  )}
+                </div>
+
+                {/* DIFFERENTIAL 2: COMMUNITY VOLUNTEER PLEDGES (GAP: "Passive Bystander" complaint culture) */}
+                <div className="bg-blue-50/40 border border-blue-200 rounded-xl p-4 space-y-3" id="community-action-pledges-panel">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <Users className="w-4 h-4 text-blue-600" />
+                      <span className="text-xs font-bold text-blue-950 uppercase tracking-wider">Community Task Force Hub</span>
+                    </div>
+                    <span className="text-xs font-bold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                      <Heart className="w-3 h-3 text-red-500 fill-red-500" />
+                      {activeIssue.communityPledges?.length || 0} Pledges
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-normal">
+                    Don't just wait for the government! Team up to co-solve issues. Organize cleanup sessions, pledge tools, labor, or refreshments. Earn +15 Civic Reputation.
+                  </p>
+
+                  {/* List of active pledges */}
+                  {activeIssue.communityPledges && activeIssue.communityPledges.length > 0 ? (
+                    <div className="space-y-2">
+                      {activeIssue.communityPledges.map((pledge, idx) => (
+                        <div key={idx} className="bg-white p-2.5 rounded-lg border border-blue-100 flex items-start gap-2 text-[11px]">
+                          <div className="p-1 bg-blue-50 text-blue-600 rounded-full shrink-0">
+                            {pledge.pledgeType === 'labor' ? <Wrench className="w-3.5 h-3.5" /> : 
+                             pledge.pledgeType === 'supplies' ? <Coins className="w-3.5 h-3.5" /> : 
+                             pledge.pledgeType === 'cleanup' ? <Activity className="w-3.5 h-3.5" /> : <Heart className="w-3.5 h-3.5" />}
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-800">{pledge.userName}</span>
+                            <span className="text-slate-400 text-[10px] ml-1.5 font-medium uppercase tracking-wider bg-slate-50 px-1 rounded border border-slate-100">
+                              {pledge.pledgeType} {pledge.hours ? `(${pledge.hours}h)` : ''}
+                            </span>
+                            <p className="text-slate-600 mt-1">{pledge.notes}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-2.5 bg-white rounded-lg border border-blue-100 border-dashed text-[11px] text-slate-400 italic">
+                      No citizen pledges yet. Be the first to initiate local direct action!
+                    </div>
+                  )}
+
+                  {/* Create Pledge form */}
+                  {showPledgeForm ? (
+                    <form onSubmit={handleCreatePledge} className="bg-white p-3 rounded-lg border border-blue-200 space-y-2 text-xs">
+                      <div className="flex justify-between items-center pb-1 border-b border-blue-100">
+                        <span className="font-bold text-blue-900">Sign Up for Neighborhood Task Force</span>
+                        <button type="button" onClick={() => setShowPledgeForm(false)} className="text-slate-400 hover:text-slate-600">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase block">Pledge Contribution Type</label>
+                        <div className="grid grid-cols-2 gap-1 text-[10px]">
+                          {[
+                            { value: 'labor', label: '🛠 Volunteer Labor' },
+                            { value: 'supplies', label: '📦 Repair Supplies' },
+                            { value: 'cleanup', label: '🧹 Cleanup Support' },
+                            { value: 'donation', label: '❤️ Minor Support' }
+                          ].map((opt) => (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() => setPledgeType(opt.value as any)}
+                              className={`py-1.5 px-2 rounded-md font-medium border text-center transition-all ${pledgeType === opt.value ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'}`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {['labor', 'cleanup'].includes(pledgeType) && (
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 uppercase block">Committed Volunteer Hours</label>
+                          <input 
+                            type="number" 
+                            min="1" 
+                            max="40"
+                            value={pledgeHours} 
+                            onChange={(e) => setPledgeHours(parseInt(e.target.value) || 1)}
+                            className="w-full border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-hidden"
+                          />
+                        </div>
+                      )}
+
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase block">What specific tools/help can you bring?</label>
+                        <textarea 
+                          required
+                          placeholder="e.g. I have heavy ropes and 2 rakes. I am free on Sunday afternoon." 
+                          value={pledgeNotes}
+                          onChange={(e) => setPledgeNotes(e.target.value)}
+                          rows={2}
+                          className="w-full border border-slate-200 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-blue-500 outline-hidden resize-none"
+                        />
+                      </div>
+
+                      <button 
+                        type="submit" 
+                        disabled={isPledging}
+                        className="w-full py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-bold rounded text-center transition-all flex items-center justify-center gap-1.5"
+                      >
+                        {isPledging ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : '✓ Pledge to Task Force'}
+                      </button>
+                    </form>
+                  ) : (
+                    <button 
+                      type="button" 
+                      onClick={() => setShowPledgeForm(true)}
+                      className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs text-center flex items-center justify-center gap-1.5 transition-all shadow-xs"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Join Neighborhood Action Task Force
+                    </button>
+                  )}
                 </div>
 
                 {/* GAP 7: AI TRUST ENGINE CREDIBILITY INDEX */}

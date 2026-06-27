@@ -6,7 +6,9 @@ import {
   createUserWithEmailAndPassword, 
   signOut,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
@@ -26,6 +28,7 @@ interface AuthContextType {
   loginWithEmail: (email: string, password: string) => Promise<void>;
   registerWithEmail: (email: string, password: string, name: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
+  loginWithGoogleRedirect: () => Promise<void>;
   logout: () => Promise<void>;
   updateReputation: (points: number) => Promise<void>;
   addBadge: (badge: string) => Promise<void>;
@@ -106,7 +109,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userSnap = await getDoc(userRef);
 
       if (userSnap.exists()) {
-        setProfile(userSnap.data() as UserProfile);
+        const loadedProfile = userSnap.data() as UserProfile;
+        setProfile(loadedProfile);
+        try {
+          localStorage.setItem('ch_cached_profile', JSON.stringify(loadedProfile));
+        } catch (e) {}
       } else {
         // Create initial default Citizen profile
         const newProfile: UserProfile = {
@@ -121,20 +128,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         await setDoc(userRef, newProfile);
         setProfile(newProfile);
+        try {
+          localStorage.setItem('ch_cached_profile', JSON.stringify(newProfile));
+        } catch (e) {}
       }
-    } catch (err) {
-      console.error('Error loading user profile:', err);
-      // Fail gracefully with a temporary client state
-      setProfile({
-        uid,
-        name: displayName,
-        email,
-        role: 'Citizen',
-        reputation: 25,
-        badges: ['Civic Pioneer'],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
+    } catch (err: any) {
+      const errMessage = err?.message || String(err);
+      const isOfflineError = errMessage.toLowerCase().includes('offline') || 
+                            errMessage.toLowerCase().includes('failed to get document') ||
+                            errMessage.toLowerCase().includes('network') ||
+                            errMessage.toLowerCase().includes('unavailable') ||
+                            err?.code === 'unavailable';
+
+      if (isOfflineError) {
+        console.warn('[Community Hero] Firebase Firestore is offline. Attempting cached profile fallback:', errMessage);
+      } else {
+        console.error('Error loading user profile:', err);
+      }
+
+      // Try loading from localStorage cache
+      let cached: UserProfile | null = null;
+      try {
+        const cachedStr = localStorage.getItem('ch_cached_profile');
+        if (cachedStr) {
+          cached = JSON.parse(cachedStr);
+        }
+      } catch (cacheErr) {
+        console.warn('Failed to parse cached profile:', cacheErr);
+      }
+
+      if (cached && cached.uid === uid) {
+        setProfile(cached);
+      } else {
+        // Fail gracefully with a temporary client state
+        setProfile({
+          uid,
+          name: displayName,
+          email,
+          role: 'Citizen',
+          reputation: 25,
+          badges: ['Civic Pioneer'],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      }
     }
   };
 
@@ -161,24 +198,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
+    let isMounted = true;
+    setLoading(true);
+
+    // Properly retrieve redirect results on page loads (Google Sign-In Redirects)
+    const redirectPromise = getRedirectResult(auth)
+      .then(async (result) => {
+        if (result?.user && isMounted) {
+          setUser(result.user);
+          setIsSandboxMode(false);
+          localStorage.setItem('ch_sandbox_mode', 'false');
+          await loadProfile(
+            result.user.uid,
+            result.user.email || '',
+            result.user.displayName || result.user.email?.split('@')[0] || 'Citizen'
+          );
+        }
+      })
+      .catch((err: any) => {
+        console.error('Error handling Firebase Auth redirect result:', err);
+        if (isMounted) {
+          setError(err.message || 'Google Sign-In Redirect failed');
+        }
+      });
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!isMounted) return;
       setLoading(true);
       setError(null);
-      if (firebaseUser) {
-        setUser(firebaseUser);
-        await loadProfile(
-          firebaseUser.uid, 
-          firebaseUser.email || '', 
-          firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Citizen'
-        );
-      } else {
-        setUser(null);
-        setProfile(null);
+      try {
+        // Wait for getRedirectResult to finish to avoid race conditions and ensure profile persistence
+        await redirectPromise;
+
+        if (isMounted) {
+          if (firebaseUser) {
+            setUser(firebaseUser);
+            await loadProfile(
+              firebaseUser.uid, 
+              firebaseUser.email || '', 
+              firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Citizen'
+            );
+          } else {
+            setUser(null);
+            setProfile(null);
+          }
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          setError(err.message || 'Failed to sync authentication');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
     });
 
-    return unsubscribe;
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, [isSandboxMode, sandboxRole]);
 
   // Auth Functions
@@ -223,6 +302,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('ch_sandbox_mode', 'false');
     } catch (err: any) {
       setError(err.message || 'Google Sign-In failed');
+      throw err;
+    }
+  };
+
+  const loginWithGoogleRedirect = async () => {
+    if (!auth) throw new Error('Auth is not initialized');
+    setError(null);
+    setLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      setIsSandboxMode(false);
+      localStorage.setItem('ch_sandbox_mode', 'false');
+      await signInWithRedirect(auth, provider);
+    } catch (err: any) {
+      setError(err.message || 'Google Sign-In Redirect initialization failed');
+      setLoading(false);
       throw err;
     }
   };
@@ -289,6 +384,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       loginWithEmail,
       registerWithEmail,
       loginWithGoogle,
+      loginWithGoogleRedirect,
       logout,
       updateReputation,
       addBadge

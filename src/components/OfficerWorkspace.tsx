@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { dbGetIssues, dbUpdateIssueStatus, dbCreateVerificationRequest, dbGetVerificationRequests } from '../services/dbService';
 import { Issue } from '../types';
+import { getIssueActionClassification } from '../services/classificationService';
 import { useAuth } from '../contexts/AuthContext';
 
 export const OfficerWorkspace: React.FC = () => {
@@ -178,6 +179,19 @@ export const OfficerWorkspace: React.FC = () => {
                 <p className="text-xs text-slate-500 leading-normal bg-slate-50 rounded-xl p-2.5 border border-slate-100/60">
                   {issue.description}
                 </p>
+
+                {/* Dynamic Action Responsiveness Indicator */}
+                {(() => {
+                  const action = getIssueActionClassification(issue);
+                  return (
+                    <div className={`flex items-center gap-1.5 px-2 py-1 rounded-lg border ${action.bgColor} ${action.textColor} text-[10px] font-bold w-fit max-w-full`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${action.badgeColor}`} />
+                      <span className="shrink-0">{action.label}</span>
+                      <span className="text-slate-300 font-normal">|</span>
+                      <span className="opacity-85 font-normal truncate">{action.reason}</span>
+                    </div>
+                  );
+                })()}
 
                 {/* Queue Actions */}
                 <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-50 items-center justify-between">

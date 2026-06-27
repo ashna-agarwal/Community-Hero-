@@ -48,7 +48,7 @@ function AppContent() {
   const [name, setName] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   // Core navigation tabs
   const [activeTab, setActiveTab] = useState<'feed' | 'map' | 'report' | 'officer' | 'admin'>('feed');
@@ -346,24 +346,38 @@ function AppContent() {
           </div>
 
           {/* User profile capsule */}
-          <div className="flex items-center gap-3" id="header-user-profile">
-            <div className="hidden lg:flex flex-col text-right">
-              <span className="text-xs font-semibold text-slate-900">{profile.name}</span>
-              <span className="text-[10px] text-slate-400 bg-slate-100 rounded-full px-2 py-0.5 mt-0.5 self-end font-semibold">
-                {profile.role}
-              </span>
-            </div>
-            <div className="w-9 h-9 bg-gradient-to-tr from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm relative">
-              {profile.name[0]}
-              {profile.reputation > 0 && (
-                <div className="absolute -bottom-1 -right-1 bg-amber-500 text-white rounded-full p-0.5 border-2 border-white flex items-center justify-center">
-                  <Award className="w-2.5 h-2.5" />
-                </div>
-              )}
-            </div>
+          <div className="flex items-center gap-3.5" id="header-user-profile">
+            {/* Reputation Badge Chip for Mobile/Tablet */}
+            <button 
+              onClick={() => setIsProfileModalOpen(true)}
+              className="lg:hidden flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-full px-2.5 py-1 text-xs font-bold transition-all hover:bg-amber-100 cursor-pointer"
+            >
+              <Flame className="w-3.5 h-3.5 text-orange-500 fill-orange-500 animate-pulse" />
+              <span>{profile.reputation} pts</span>
+            </button>
+
+            <button 
+              onClick={() => setIsProfileModalOpen(true)}
+              className="flex items-center gap-2 cursor-pointer group"
+            >
+              <div className="hidden lg:flex flex-col text-right">
+                <span className="text-xs font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">{profile.name}</span>
+                <span className="text-[10px] text-slate-400 bg-slate-100 rounded-full px-2 py-0.5 mt-0.5 self-end font-semibold">
+                  {profile.role}
+                </span>
+              </div>
+              <div className="w-9 h-9 bg-gradient-to-tr from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-sm relative shadow-xs transition-transform group-hover:scale-105">
+                {profile.name[0]}
+                {profile.reputation > 0 && (
+                  <div className="absolute -bottom-1 -right-1 bg-amber-500 text-white rounded-full p-0.5 border-2 border-white flex items-center justify-center">
+                    <Award className="w-2.5 h-2.5" />
+                  </div>
+                )}
+              </div>
+            </button>
             <button 
               onClick={logout}
-              className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
+              className="hidden lg:block p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-red-600 transition-colors cursor-pointer"
               title="Logout"
             >
               <LogOut className="w-4 h-4" />
@@ -393,8 +407,8 @@ function AppContent() {
       {/* 2. Platform Navigation & Page Feed Layout */}
       <div className="flex-1 flex flex-col lg:flex-row max-w-7xl w-full mx-auto" id="dashboard-body">
         
-        {/* Responsive Side Menu */}
-        <aside className="w-full lg:w-64 bg-white lg:border-r border-slate-100 p-4 shrink-0" id="sidebar-navigation">
+        {/* Responsive Side Menu (Hidden on mobile/tablet, using mobile bottom nav instead) */}
+        <aside className="hidden lg:block w-full lg:w-64 bg-white lg:border-r border-slate-100 p-4 shrink-0" id="sidebar-navigation">
           {/* Reputation Indicator widget */}
           <div className="bg-slate-50 rounded-xl p-4 mb-4 border border-slate-200/50">
             <div className="flex items-center gap-2 text-slate-700">
@@ -483,8 +497,8 @@ function AppContent() {
           </nav>
         </aside>
 
-        {/* 3. Main Dashboard Window Feed */}
-        <main className="flex-1 p-4 lg:p-6" id="dashboard-main-panel">
+        {/* 3. Main Dashboard Window Feed (Responsive padding bottom to avoid viewport overlap with mobile nav) */}
+        <main className="flex-1 p-4 lg:p-6 pb-24 lg:pb-6" id="dashboard-main-panel">
           <AnimatePresence mode="wait">
             {activeTab === 'feed' && (
               <motion.div 
@@ -588,6 +602,182 @@ function AppContent() {
           </AnimatePresence>
         </main>
       </div>
+
+      {/* Bottom Tab Navigation for Mobile & Tablet */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40 px-2 py-2 pb-safe shadow-[0_-4px_10px_rgba(0,0,0,0.05)] flex justify-around items-center" id="mobile-bottom-nav">
+        <button 
+          onClick={() => {
+            setSelectedIssueId(null);
+            setActiveTab('feed');
+          }}
+          className={`flex flex-col items-center gap-1 py-1 px-3 transition-all ${
+            activeTab === 'feed' 
+              ? 'text-blue-600 scale-105 font-bold' 
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Compass className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Feed</span>
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('map')}
+          className={`flex flex-col items-center gap-1 py-1 px-3 transition-all ${
+            activeTab === 'map' 
+              ? 'text-blue-600 scale-105 font-bold' 
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <MapPin className="w-5 h-5" />
+          <span className="text-[10px] font-bold">Map</span>
+        </button>
+
+        {profile.role === 'Citizen' && (
+          <button 
+            onClick={() => setActiveTab('report')}
+            className={`flex flex-col items-center justify-center -mt-6 bg-blue-600 text-white rounded-full w-12 h-12 shadow-lg hover:bg-blue-700 transition-all focus:ring-4 focus:ring-blue-100 active:scale-95`}
+            id="mobile-nav-report-fab"
+            title="File New Citizen Report"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
+        )}
+
+        {(profile.role === 'Officer' || profile.role === 'Department Head' || profile.role === 'Super Admin') && (
+          <button 
+            onClick={() => setActiveTab('officer')}
+            className={`flex flex-col items-center gap-1 py-1 px-3 transition-all ${
+              activeTab === 'officer' 
+                ? 'text-blue-600 scale-105 font-bold' 
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <CheckCircle className="w-5 h-5" />
+            <span className="text-[10px] font-bold">Workspace</span>
+          </button>
+        )}
+
+        {(profile.role === 'Department Head' || profile.role === 'Super Admin') && (
+          <button 
+            onClick={() => setActiveTab('admin')}
+            className={`flex flex-col items-center gap-1 py-1 px-3 transition-all ${
+              activeTab === 'admin' 
+                ? 'text-blue-600 scale-105 font-bold' 
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <BarChart3 className="w-5 h-5" />
+            <span className="text-[10px] font-bold">Admin</span>
+          </button>
+        )}
+      </div>
+
+      {/* Profile & Reputation Drawer/Modal for Mobile/Tablet */}
+      <AnimatePresence>
+        {isProfileModalOpen && (
+          <div className="fixed inset-0 z-50 overflow-hidden lg:hidden" id="mobile-profile-modal">
+            {/* Backdrop overlay */}
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsProfileModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs"
+            />
+
+            {/* Panel drawer */}
+            <div className="absolute inset-y-0 right-0 max-w-full flex pl-10">
+              <motion.div 
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="w-screen max-w-sm bg-white shadow-2xl flex flex-col justify-between"
+              >
+                {/* Drawer Header */}
+                <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Citizen Profile</span>
+                  <button 
+                    onClick={() => setIsProfileModalOpen(false)}
+                    className="p-1.5 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Drawer Body */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                  {/* User Avatar & Name */}
+                  <div className="flex flex-col items-center text-center space-y-3">
+                    <div className="w-16 h-16 bg-gradient-to-tr from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-2xl relative shadow-md">
+                      {profile.name[0]}
+                      {profile.reputation > 0 && (
+                        <div className="absolute -bottom-1 -right-1 bg-amber-500 text-white rounded-full p-1 border-2 border-white flex items-center justify-center">
+                          <Award className="w-3.5 h-3.5" />
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900">{profile.name}</h3>
+                      <span className="inline-block text-xs font-bold bg-slate-100 text-slate-600 rounded-full px-3 py-0.5 mt-1 border border-slate-200/50">
+                        {profile.role}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Reputation widget cloned for the drawer */}
+                  <div className="bg-amber-50 border border-amber-100 rounded-2xl p-5 space-y-3">
+                    <div className="flex items-center gap-2 text-amber-800">
+                      <Flame className="w-5 h-5 text-orange-500 animate-pulse fill-orange-500" />
+                      <span className="text-xs font-extrabold uppercase tracking-wider">Civic Reputation Status</span>
+                    </div>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-3xl font-black text-slate-900">{profile.reputation}</span>
+                      <span className="text-xs text-slate-500 font-medium">Points Earned</span>
+                    </div>
+                    <p className="text-[11px] text-amber-950 leading-relaxed">
+                      Earn reputation points by filing verified reports, helping co-solve community tasks, auditing municipal prices, and validating neighborhood resolutions.
+                    </p>
+                  </div>
+
+                  {/* Badges container */}
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Unlocked Badges ({profile.badges.length})</h4>
+                    {profile.badges.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {profile.badges.map((badge) => (
+                          <div key={badge} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex flex-col items-center text-center space-y-1">
+                            <span className="text-xl">🏆</span>
+                            <span className="text-[10px] font-bold text-slate-700 leading-snug">{badge}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-400 italic text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                        No badges earned yet. Submit your first neighborhood report to unlock badges!
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Drawer Footer */}
+                <div className="p-5 border-t border-slate-100 bg-slate-50 flex flex-col gap-2">
+                  <button 
+                    onClick={() => {
+                      setIsProfileModalOpen(false);
+                      logout();
+                    }}
+                    className="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out Account
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

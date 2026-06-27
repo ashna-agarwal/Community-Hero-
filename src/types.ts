@@ -67,6 +67,19 @@ export interface Issue {
   isMerged?: boolean;                // Flag for duplicate aggregator
   mergedWithId?: string;             // Parent issue ID if merged
   affectedCount?: number;            // Counter representing original duplicates + supporters
+  
+  // Gaps Solved Differentiating Features
+  materialsEstimate?: {
+    cost: number;
+    items: Array<{ name: string; qty: number; unit: string; cost: number }>;
+  };
+  communityPledges?: Array<{
+    userId: string;
+    userName: string;
+    hours?: number;
+    pledgeType: 'labor' | 'supplies' | 'cleanup' | 'donation';
+    notes?: string;
+  }>;
 }
 
 export interface Comment {

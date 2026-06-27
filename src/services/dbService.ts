@@ -60,7 +60,20 @@ const SEED_ISSUES: Issue[] = [
     escalationLevel: 2, // Escalated to Department Head
     escalationDate: new Date(Date.now() - 17 * 24 * 60 * 60 * 1000).toISOString(),
     isMerged: true,
-    affectedCount: 500
+    affectedCount: 500,
+    materialsEstimate: {
+      cost: 3450,
+      items: [
+        { name: 'Heavy Duty Sewer Outlet Pipes (12")', qty: 6, unit: 'm', cost: 1200 },
+        { name: 'Industrial Excavator Rental', qty: 2, unit: 'days', cost: 1500 },
+        { name: 'Quick-Setting Structural Concrete', qty: 15, unit: 'bags', cost: 450 },
+        { name: 'Protective Crew Gear & Safety Signage', qty: 10, unit: 'units', cost: 300 }
+      ]
+    },
+    communityPledges: [
+      { userId: 'reporter-1', userName: 'Ashna Agarwal', hours: 4, pledgeType: 'cleanup', notes: 'I will coordinate the volunteer cleanup session once sewer flow returns to normal.' },
+      { userId: 'user-2', userName: 'Pranav Roy', pledgeType: 'supplies', notes: 'Happy to provide 5 boxes of standard trash grabbers and heavy trash bags.' }
+    ]
   },
   {
     id: 'issue-102',
@@ -90,7 +103,19 @@ const SEED_ISSUES: Issue[] = [
     escalationLevel: 1, // Escalated to Senior Officer
     escalationDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    materialsEstimate: {
+      cost: 840,
+      items: [
+        { name: 'Rapid Cold Patch Asphalt Mix', qty: 12, unit: 'bags', cost: 360 },
+        { name: 'Manual Vibratory Asphalt Tamper Rental', qty: 1, unit: 'day', cost: 180 },
+        { name: 'Safety Delineator Barricade Cones', qty: 4, unit: 'units', cost: 100 },
+        { name: 'Heavy Bitumen Tack Coat Emulsion', qty: 4, unit: 'buckets', cost: 200 }
+      ]
+    },
+    communityPledges: [
+      { userId: 'user-3', userName: 'Karan Mehra', hours: 3, pledgeType: 'labor', notes: 'I have a shovel and manual tamper. Happy to assist in filling!' }
+    ]
   },
   {
     id: 'issue-103',
@@ -980,3 +1005,112 @@ export const dbMarkNotificationRead = async (id: string): Promise<void> => {
     }
   }
 };
+
+/**
+ * CITIZEN PLEDGING FOR DIRECT ACTION (GAP SOLVER)
+ */
+export const dbAddCommunityPledge = async (
+  issueId: string, 
+  pledge: { userId: string; userName: string; hours?: number; pledgeType: 'labor' | 'supplies' | 'cleanup' | 'donation'; notes?: string }
+): Promise<void> => {
+  if (isLocalMode()) {
+    const issues = getLocalIssues();
+    const idx = issues.findIndex(i => i.id === issueId);
+    if (idx !== -1) {
+      if (!issues[idx].communityPledges) {
+        issues[idx].communityPledges = [];
+      }
+      issues[idx].communityPledges!.push(pledge);
+      issues[idx].updatedAt = new Date().toISOString();
+      saveLocalIssues(issues);
+
+      // Log in Audit Trail
+      const localLogs = JSON.parse(localStorage.getItem('ch_local_logs') || '{}');
+      if (!localLogs[issueId]) localLogs[issueId] = [];
+      localLogs[issueId].push({
+        id: `log-${Date.now()}`,
+        issueId,
+        userId: pledge.userId,
+        userName: pledge.userName,
+        action: `Pledged support: ${pledge.pledgeType.toUpperCase()} ${pledge.hours ? `(${pledge.hours} hours)` : ''} - "${pledge.notes || ''}"`,
+        createdAt: new Date().toISOString()
+      });
+      localStorage.setItem('ch_local_logs', JSON.stringify(localLogs));
+    }
+    return;
+  }
+
+  try {
+    const issueRef = doc(db!, 'issues', issueId);
+    const snap = await getDoc(issueRef);
+    if (snap.exists()) {
+      const issueData = snap.data() as Issue;
+      const pledges = issueData.communityPledges || [];
+      pledges.push(pledge);
+      await updateDoc(issueRef, {
+        communityPledges: pledges,
+        updatedAt: new Date().toISOString()
+      });
+
+      // Write Activity Log
+      const logRef = doc(collection(db!, `issues/${issueId}/activityLogs`));
+      await setDoc(logRef, {
+        id: logRef.id,
+        issueId,
+        userId: pledge.userId,
+        userName: pledge.userName,
+        action: `Pledged support: ${pledge.pledgeType.toUpperCase()} ${pledge.hours ? `(${pledge.hours} hours)` : ''} - "${pledge.notes || ''}"`,
+        createdAt: new Date().toISOString()
+      });
+    }
+  } catch (err: any) {
+    console.warn('[Community Hero] Firestore dbAddCommunityPledge failed, falling back to LocalStorage:', err);
+    isFirebaseOffline = true;
+    const issues = getLocalIssues();
+    const idx = issues.findIndex(i => i.id === issueId);
+    if (idx !== -1) {
+      if (!issues[idx].communityPledges) {
+        issues[idx].communityPledges = [];
+      }
+      issues[idx].communityPledges!.push(pledge);
+      saveLocalIssues(issues);
+    }
+  }
+};
+
+/**
+ * AI MATERIALS ESTIMATE FEEDBACK (GAP SOLVER)
+ */
+export const dbUpdateMaterialsEstimate = async (
+  issueId: string,
+  materialsEstimate: Issue['materialsEstimate']
+): Promise<void> => {
+  if (isLocalMode()) {
+    const issues = getLocalIssues();
+    const idx = issues.findIndex(i => i.id === issueId);
+    if (idx !== -1) {
+      issues[idx].materialsEstimate = materialsEstimate;
+      issues[idx].updatedAt = new Date().toISOString();
+      saveLocalIssues(issues);
+    }
+    return;
+  }
+
+  try {
+    const issueRef = doc(db!, 'issues', issueId);
+    await updateDoc(issueRef, {
+      materialsEstimate,
+      updatedAt: new Date().toISOString()
+    });
+  } catch (err: any) {
+    console.warn('[Community Hero] Firestore dbUpdateMaterialsEstimate failed, falling back to LocalStorage:', err);
+    isFirebaseOffline = true;
+    const issues = getLocalIssues();
+    const idx = issues.findIndex(i => i.id === issueId);
+    if (idx !== -1) {
+      issues[idx].materialsEstimate = materialsEstimate;
+      saveLocalIssues(issues);
+    }
+  }
+};
+

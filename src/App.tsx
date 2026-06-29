@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { 
   Shield, 
@@ -19,7 +19,11 @@ import {
   FileText,
   BarChart3,
   HelpCircle,
-  MessageSquare
+  MessageSquare,
+  Sun,
+  Moon,
+  Bell,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DiscoveryFeed } from './components/DiscoveryFeed';
@@ -27,7 +31,8 @@ import { ReportIssueForm } from './components/ReportIssueForm';
 import { InteractiveMap } from './components/InteractiveMap';
 import { OfficerWorkspace } from './components/OfficerWorkspace';
 import { AdminPanel } from './components/AdminPanel';
-import { UserRole } from './types';
+import { UserRole, Notification } from './types';
+import { dbGetMyNotifications, dbMarkNotificationRead } from './services/dbService';
 
 function AppContent() {
   const { 
@@ -36,12 +41,22 @@ function AppContent() {
     registerWithEmail, 
     loginWithGoogle,
     logout, 
-    isSandboxMode, 
-    setSandboxMode, 
-    sandboxRole, 
-    setSandboxRole,
-    loading
+    loading,
+    switchRole
   } = useAuth();
+
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    return localStorage.getItem('ch_dark_mode') === 'true';
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('ch_dark_mode', String(darkMode));
+  }, [darkMode]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -53,6 +68,76 @@ function AppContent() {
   // Core navigation tabs
   const [activeTab, setActiveTab] = useState<'feed' | 'map' | 'report' | 'officer' | 'admin'>('feed');
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
+
+  // Notification states
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isNotifDropdownOpen, setIsNotifDropdownOpen] = useState(false);
+
+  const fetchNotifications = async () => {
+    if (!profile?.uid) return;
+    try {
+      const data = await dbGetMyNotifications(profile.uid);
+      setNotifications(data);
+    } catch (err) {
+      console.warn('Failed to fetch notifications:', err);
+    }
+  };
+
+  // Poll notifications when user is logged in
+  useEffect(() => {
+    if (!profile?.uid) return;
+    fetchNotifications();
+
+    const interval = setInterval(() => {
+      fetchNotifications();
+    }, 5000); // Poll every 5 seconds to get updates immediately
+
+    return () => clearInterval(interval);
+  }, [profile?.uid]);
+
+  const markAllAsRead = async () => {
+    if (!profile?.uid) return;
+    try {
+      const unreads = notifications.filter(n => !n.read);
+      await Promise.all(unreads.map(n => dbMarkNotificationRead(n.id)));
+      await fetchNotifications();
+    } catch (err) {
+      console.warn('Failed to mark all notifications as read:', err);
+    }
+  };
+
+  const handleNotificationClick = async (notif: Notification) => {
+    try {
+      if (!notif.read) {
+        await dbMarkNotificationRead(notif.id);
+        await fetchNotifications();
+      }
+      setIsNotifDropdownOpen(false);
+      if (notif.issueId) {
+        setSelectedIssueId(notif.issueId);
+        setActiveTab('feed');
+      }
+    } catch (err) {
+      console.warn('Failed to process notification click:', err);
+    }
+  };
+
+  const formatTimeAgo = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+      if (seconds < 60) return 'Just now';
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return `${minutes}m ago`;
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return `${hours}h ago`;
+      const days = Math.floor(hours / 24);
+      if (days === 1) return 'Yesterday';
+      return `${days}d ago`;
+    } catch (e) {
+      return '';
+    }
+  };
 
   if (loading) {
     return (
@@ -88,7 +173,18 @@ function AppContent() {
     };
 
     return (
-      <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row" id="auth-page">
+      <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row relative" id="auth-page">
+        {/* Floating Theme Toggle */}
+        <button
+          type="button"
+          onClick={() => setDarkMode(!darkMode)}
+          className="absolute top-4 right-4 z-50 p-2.5 bg-white text-slate-700 border border-slate-200 rounded-full hover:bg-slate-50 shadow-sm transition-all cursor-pointer flex items-center justify-center"
+          title={darkMode ? "Switch to Light Theme" : "Switch to Dark Theme"}
+          id="auth-theme-toggle"
+        >
+          {darkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-slate-500" />}
+        </button>
+
         {/* Left column: Visual branding */}
         <div className="bg-gradient-to-br from-blue-700 via-indigo-800 to-slate-900 text-white flex-1 p-8 md:p-16 flex flex-col justify-between relative overflow-hidden" id="auth-left-branding">
           <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"></div>
@@ -145,19 +241,7 @@ function AppContent() {
                   </div>
                 </div>
                 
-                <div className="pt-2 border-t border-red-100 flex flex-col gap-1.5">
-                  <p className="font-medium text-slate-500 text-[10px] uppercase tracking-wider">Hackathon Quick Bypass:</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSandboxRole('Citizen');
-                      setSandboxMode(true);
-                    }}
-                    className="w-full py-2 px-3 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-semibold text-center transition-all duration-150 shadow-sm shadow-red-200"
-                  >
-                    ⚡ Launch Offline Sandbox Mode (No Setup Required)
-                  </button>
-                </div>
+                {/* NO QUICK BYPASS BUTTON */}
               </div>
             )}
 
@@ -255,46 +339,7 @@ function AppContent() {
               </button>
             </div>
 
-            {/* SANDBOX DEV BYPASS PANEL */}
-            <div className="mt-8 pt-6 border-t border-slate-100" id="sandbox-bypass-panel">
-              <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4 text-center">
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-full text-[10px] font-bold tracking-wide mb-2 uppercase">
-                  Sandbox Testing Tool
-                </span>
-                <p className="text-xs text-slate-500 mb-3">
-                  Instantly bypass authentication and login as any stakeholding role to test specific platform dashboard features.
-                </p>
-                <div className="grid grid-cols-2 gap-1.5" id="sandbox-role-selection-grid">
-                  <button 
-                    onClick={() => {
-                      setSandboxRole('Citizen');
-                      setSandboxMode(true);
-                    }}
-                    className="py-1.5 px-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium rounded-lg transition-all"
-                  >
-                    Citizen View
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setSandboxRole('Officer');
-                      setSandboxMode(true);
-                    }}
-                    className="py-1.5 px-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium rounded-lg transition-all"
-                  >
-                    Officer View
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setSandboxRole('Department Head');
-                      setSandboxMode(true);
-                    }}
-                    className="py-1.5 px-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-medium rounded-lg transition-all col-span-2"
-                  >
-                    Department Head Panel
-                  </button>
-                </div>
-              </div>
-            </div>
+            {/* NO SANDBOX BYPASS PANEL */}
           </div>
         </div>
       </div>
@@ -318,31 +363,19 @@ function AppContent() {
             </div>
           </div>
 
-          {/* Sandbox Controls directly inside the top navigation bar */}
-          <div className="hidden md:flex items-center gap-2 bg-slate-50 border border-slate-200 p-1.5 rounded-xl text-xs" id="header-sandbox-tools">
-            <span className="font-semibold text-slate-500 px-1.5">Sandbox Mode:</span>
-            <button 
-              onClick={() => setSandboxMode(!isSandboxMode)}
-              className={`px-2.5 py-1 rounded-lg font-medium transition-all ${
-                isSandboxMode 
-                  ? 'bg-blue-600 text-white shadow-xs' 
-                  : 'bg-transparent text-slate-600 hover:bg-slate-200'
-              }`}
+          {/* Dynamic Platform View Switcher (For Deployed Demo/Showcase) */}
+          <div className="hidden md:flex items-center gap-2.5 bg-blue-50/55 border border-blue-100 p-1.5 rounded-xl text-xs" id="demo-role-switcher">
+            <span className="font-semibold text-blue-800 px-1">Platform View:</span>
+            <select 
+              value={profile.role}
+              onChange={(e) => switchRole(e.target.value as UserRole)}
+              className="bg-white border border-blue-200/60 rounded-lg px-2.5 py-1 text-slate-700 font-bold hover:border-blue-400 focus:outline-none transition-all cursor-pointer shadow-3xs text-[11px]"
             >
-              {isSandboxMode ? 'ON' : 'OFF'}
-            </button>
-            {isSandboxMode && (
-              <select 
-                value={sandboxRole}
-                onChange={(e) => setSandboxRole(e.target.value as UserRole)}
-                className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-700 font-medium focus:outline-none"
-              >
-                <option value="Citizen">Citizen Role</option>
-                <option value="Officer">Officer Role</option>
-                <option value="Department Head">Dept Head Role</option>
-                <option value="Super Admin">Admin Role</option>
-              </select>
-            )}
+              <option value="Citizen">Citizen Portal</option>
+              <option value="Officer">Officer Workspace</option>
+              <option value="Department Head">Dept Head Panel</option>
+              <option value="Super Admin">Super Admin Panel</option>
+            </select>
           </div>
 
           {/* User profile capsule */}
@@ -375,6 +408,133 @@ function AppContent() {
                 )}
               </div>
             </button>
+
+            {/* Notification Bell Icon */}
+            <div className="relative" id="header-notifications">
+              <button
+                onClick={() => {
+                  setIsNotifDropdownOpen(!isNotifDropdownOpen);
+                  fetchNotifications();
+                }}
+                className="relative p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors cursor-pointer flex items-center justify-center"
+                title="Notifications"
+                id="bell-icon-btn"
+              >
+                <Bell className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                {notifications.filter(n => !n.read).length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                  </span>
+                )}
+              </button>
+
+              {/* Click-outside underlay */}
+              {isNotifDropdownOpen && (
+                <div 
+                  className="fixed inset-0 z-30" 
+                  onClick={() => setIsNotifDropdownOpen(false)} 
+                />
+              )}
+
+              {/* Notifications Dropdown Panel */}
+              {isNotifDropdownOpen && (
+                <div 
+                  className="absolute right-0 mt-2 w-80 md:w-96 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl z-40 p-4 max-h-[420px] overflow-y-auto flex flex-col"
+                  id="notif-dropdown-panel"
+                >
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-2.5 mb-2.5">
+                    <h3 className="font-display font-bold text-slate-900 dark:text-white text-sm">Notifications</h3>
+                    {notifications.filter(n => !n.read).length > 0 && (
+                      <button 
+                        onClick={markAllAsRead}
+                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-semibold cursor-pointer"
+                        id="mark-all-read-btn"
+                      >
+                        Mark all as read
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5 flex-1">
+                    {notifications.length === 0 ? (
+                      <div className="py-8 text-center flex flex-col items-center justify-center text-slate-400" id="notif-empty-state">
+                        <Bell className="w-8 h-8 text-slate-300 dark:text-slate-600 mb-2 animate-bounce" />
+                        <p className="font-medium text-xs text-slate-500 dark:text-slate-400">No notifications yet</p>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 max-w-[200px] mt-0.5">We will alert you here when your reported issue status changes.</p>
+                      </div>
+                    ) : (
+                      notifications.map((notif) => {
+                        // Choose colors and icon based on notification type
+                        let iconColor = "text-blue-500 bg-blue-50 dark:bg-blue-950/40";
+                        let IconComponent = Bell;
+
+                        if (notif.type === 'Status Changed' || notif.type === 'Issue Resolved') {
+                          const isResolved = notif.message.toLowerCase().includes('resolved') || notif.message.toLowerCase().includes('verified');
+                          iconColor = isResolved
+                            ? "text-emerald-500 bg-emerald-50 dark:bg-emerald-950/40"
+                            : "text-blue-500 bg-blue-50 dark:bg-blue-950/40";
+                          IconComponent = isResolved
+                            ? CheckCircle
+                            : AlertCircle;
+                        } else if (notif.type === 'Issue Assigned') {
+                          iconColor = "text-indigo-500 bg-indigo-50 dark:bg-indigo-950/40";
+                          IconComponent = User;
+                        } else if (notif.type === 'Comment Added') {
+                          iconColor = "text-teal-500 bg-teal-50 dark:bg-teal-950/40";
+                          IconComponent = MessageSquare;
+                        } else if (notif.type === 'Verification Requested') {
+                          iconColor = "text-amber-500 bg-amber-50 dark:bg-amber-950/40";
+                          IconComponent = Shield;
+                        }
+
+                        return (
+                          <div 
+                            key={notif.id}
+                            onClick={() => handleNotificationClick(notif)}
+                            className={`p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all flex gap-3 cursor-pointer relative items-start border border-transparent ${
+                              !notif.read 
+                                ? 'bg-blue-50/30 dark:bg-blue-900/10 border-blue-100/30 dark:border-blue-800/20' 
+                                : ''
+                            }`}
+                          >
+                            <div className={`p-1.5 rounded-lg shrink-0 ${iconColor}`}>
+                              <IconComponent className="w-4 h-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-semibold text-slate-800 dark:text-slate-100 text-[11px] leading-tight truncate">
+                                  {notif.title}
+                                </span>
+                                <span className="text-[9px] text-slate-400 shrink-0 font-medium">
+                                  {formatTimeAgo(notif.createdAt)}
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-normal break-words line-clamp-3">
+                                {notif.message}
+                              </p>
+                            </div>
+                            {!notif.read && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0 mt-2 shadow-xs shadow-blue-500/40" />
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Theme Toggle Button */}
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors cursor-pointer flex items-center justify-center"
+              title={darkMode ? "Switch to Light Theme" : "Switch to Dark Theme"}
+              id="header-theme-toggle"
+            >
+              {darkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-slate-500" />}
+            </button>
             <button 
               onClick={logout}
               className="hidden lg:block p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-red-600 transition-colors cursor-pointer"
@@ -386,16 +546,13 @@ function AppContent() {
         </div>
       </header>
 
-      {/* Sandbox controller banner on mobile */}
-      <div className="md:hidden bg-slate-100 border-b border-slate-200 px-4 py-2 flex items-center justify-between text-xs" id="mobile-sandbox-banner">
-        <span className="font-medium text-slate-700">Sandbox Test Settings:</span>
+      {/* Dynamic Platform View Switcher on Mobile/Tablet */}
+      <div className="md:hidden bg-blue-50 border-b border-blue-100 px-4 py-2 flex items-center justify-between text-xs" id="mobile-role-switcher">
+        <span className="font-semibold text-blue-800">Presentation Active Role:</span>
         <select 
-          value={sandboxRole}
-          onChange={(e) => {
-            setSandboxMode(true);
-            setSandboxRole(e.target.value as UserRole);
-          }}
-          className="bg-white border border-slate-200 rounded px-1 py-0.5 text-slate-700 font-semibold focus:outline-none"
+          value={profile.role}
+          onChange={(e) => switchRole(e.target.value as UserRole)}
+          className="bg-white border border-blue-200 rounded px-2 py-0.5 text-slate-700 font-bold focus:outline-none cursor-pointer text-[11px]"
         >
           <option value="Citizen">Citizen</option>
           <option value="Officer">Officer</option>

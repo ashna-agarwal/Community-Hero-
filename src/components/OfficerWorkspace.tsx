@@ -33,13 +33,12 @@ export const OfficerWorkspace: React.FC = () => {
     setLoading(true);
     try {
       const all = await dbGetIssues();
-      // In sandbox mode, show all issues so officers can play around easily! Otherwise filter by assigned officer
+      // Show issues assigned to this officer, or all issues if Department Head or Super Admin
       const filtered = all.filter(i => 
         !i.assignedOfficerId || 
         i.assignedOfficerId === profile?.uid || 
         profile?.role === 'Department Head' || 
-        profile?.role === 'Super Admin' ||
-        profile?.name.includes('Sandbox')
+        profile?.role === 'Super Admin'
       );
       setIssues(filtered);
     } catch (err) {
@@ -171,7 +170,16 @@ export const OfficerWorkspace: React.FC = () => {
 
                   {issue.imageUrl && (
                     <div className="w-14 h-14 rounded-lg bg-slate-100 border border-slate-200/50 overflow-hidden shrink-0">
-                      <img src={issue.imageUrl} alt="preview" className="w-full h-full object-cover" />
+                      <img 
+                        src={issue.imageUrl} 
+                        alt="preview" 
+                        className="w-full h-full object-cover" 
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=300&q=80';
+                        }}
+                      />
                     </div>
                   )}
                 </div>

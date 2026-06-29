@@ -296,6 +296,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ onViewIssue }) =
                     src={selectedIssue.imageUrl} 
                     alt="Quick preview" 
                     className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=300&q=80';
+                    }}
                   />
                 </div>
               )}
@@ -351,6 +356,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ onViewIssue }) =
                     src={selectedIssue.imageUrl} 
                     alt="Quick preview" 
                     className="w-full h-28 object-cover"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      e.currentTarget.onerror = null;
+                      e.currentTarget.src = 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=300&q=80';
+                    }}
                   />
                 </div>
               )}

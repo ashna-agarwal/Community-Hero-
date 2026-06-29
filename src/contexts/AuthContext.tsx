@@ -19,11 +19,6 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   error: string | null;
-  // Sandbox Dev Mock features
-  isSandboxMode: boolean;
-  setSandboxMode: (enabled: boolean) => void;
-  sandboxRole: UserRole;
-  setSandboxRole: (role: UserRole) => void;
   // Auth methods
   loginWithEmail: (email: string, password: string) => Promise<void>;
   registerWithEmail: (email: string, password: string, name: string) => Promise<void>;
@@ -32,6 +27,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   updateReputation: (points: number) => Promise<void>;
   addBadge: (badge: string) => Promise<void>;
+  switchRole: (role: UserRole) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,52 +37,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Sandbox modes for convenient local testing in the iframe
-  const [isSandboxMode, setIsSandboxMode] = useState<boolean>(() => {
-    return localStorage.getItem('ch_sandbox_mode') === 'true';
-  });
-  const [sandboxRole, setSandboxRoleState] = useState<UserRole>(() => {
-    return (localStorage.getItem('ch_sandbox_role') as UserRole) || 'Citizen';
-  });
-
-  const setSandboxMode = (enabled: boolean) => {
-    setIsSandboxMode(enabled);
-    localStorage.setItem('ch_sandbox_mode', String(enabled));
-    if (!enabled && auth?.currentUser) {
-      // Re-trigger standard profile load
-      loadProfile(auth.currentUser.uid, auth.currentUser.email || '', auth.currentUser.displayName || 'Citizen Profile');
-    } else if (enabled) {
-      // Set a fully detailed sandbox profile
-      setProfile({
-        uid: 'sandbox-user-123',
-        name: `Sandbox ${sandboxRole}`,
-        email: `sandbox-${sandboxRole.toLowerCase().replace(' ', '')}@example.com`,
-        role: sandboxRole,
-        reputation: 150,
-        badges: ['Pioneer', 'Civic Minded'],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-    }
-  };
-
-  const setSandboxRole = (role: UserRole) => {
-    setSandboxRoleState(role);
-    localStorage.setItem('ch_sandbox_role', role);
-    if (isSandboxMode) {
-      setProfile({
-        uid: 'sandbox-user-123',
-        name: `Sandbox ${role}`,
-        email: `sandbox-${role.toLowerCase().replace(' ', '')}@example.com`,
-        role: role,
-        reputation: 150,
-        badges: ['Pioneer', 'Civic Minded'],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-    }
-  };
 
   const loadProfile = async (uid: string, email: string, displayName: string) => {
     if (!db) {
@@ -176,24 +126,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    if (isSandboxMode) {
-      setProfile({
-        uid: 'sandbox-user-123',
-        name: `Sandbox ${sandboxRole}`,
-        email: `sandbox-${sandboxRole.toLowerCase().replace(' ', '')}@example.com`,
-        role: sandboxRole,
-        reputation: 150,
-        badges: ['Pioneer', 'Civic Minded'],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-      setLoading(false);
-      return;
-    }
-
     if (!auth) {
-      // Fallback mode if auth service is not active
-      setSandboxMode(true);
+      console.warn('Firebase Auth is not initialized or configured.');
       setLoading(false);
       return;
     }
@@ -206,8 +140,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .then(async (result) => {
         if (result?.user && isMounted) {
           setUser(result.user);
-          setIsSandboxMode(false);
-          localStorage.setItem('ch_sandbox_mode', 'false');
           await loadProfile(
             result.user.uid,
             result.user.email || '',
@@ -258,7 +190,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isMounted = false;
       unsubscribe();
     };
-  }, [isSandboxMode, sandboxRole]);
+  }, []);
 
   // Auth Functions
   const loginWithEmail = async (email: string, password: string) => {
@@ -267,8 +199,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
       setUser(cred.user);
-      setIsSandboxMode(false);
-      localStorage.setItem('ch_sandbox_mode', 'false');
     } catch (err: any) {
       setError(err.message || 'Failed to login');
       throw err;
@@ -281,8 +211,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       setUser(cred.user);
-      setIsSandboxMode(false);
-      localStorage.setItem('ch_sandbox_mode', 'false');
       // Wait for profile setup
       await loadProfile(cred.user.uid, email, name);
     } catch (err: any) {
@@ -298,8 +226,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
       setUser(cred.user);
-      setIsSandboxMode(false);
-      localStorage.setItem('ch_sandbox_mode', 'false');
     } catch (err: any) {
       setError(err.message || 'Google Sign-In failed');
       throw err;
@@ -312,8 +238,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      setIsSandboxMode(false);
-      localStorage.setItem('ch_sandbox_mode', 'false');
       await signInWithRedirect(auth, provider);
     } catch (err: any) {
       setError(err.message || 'Google Sign-In Redirect initialization failed');
@@ -323,8 +247,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    setIsSandboxMode(false);
-    localStorage.removeItem('ch_sandbox_mode');
     setUser(null);
     setProfile(null);
     if (!auth) return;
@@ -343,7 +265,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updated = { ...profile, reputation: newRep, updatedAt: new Date().toISOString() };
     setProfile(updated);
 
-    if (isSandboxMode || !db) return;
+    if (!db) return;
 
     try {
       const userRef = doc(db, 'users', profile.uid);
@@ -361,7 +283,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const updated = { ...profile, badges: newBadges, updatedAt: new Date().toISOString() };
     setProfile(updated);
 
-    if (isSandboxMode || !db) return;
+    if (!db) return;
 
     try {
       const userRef = doc(db, 'users', profile.uid);
@@ -371,23 +293,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const switchRole = async (role: UserRole) => {
+    if (!profile) return;
+    const updated = { ...profile, role, updatedAt: new Date().toISOString() };
+    setProfile(updated);
+
+    try {
+      localStorage.setItem('ch_cached_profile', JSON.stringify(updated));
+    } catch (e) {}
+
+    if (!db) return;
+
+    try {
+      const userRef = doc(db, 'users', profile.uid);
+      await updateDoc(userRef, { role, updatedAt: new Date().toISOString() });
+    } catch (err) {
+      console.warn('Failed to save role to Firestore, using local runtime override:', err);
+    }
+  };
+
   return (
     <AuthContext.Provider value={{
       user,
       profile,
       loading,
       error,
-      isSandboxMode,
-      setSandboxMode,
-      sandboxRole,
-      setSandboxRole,
       loginWithEmail,
       registerWithEmail,
       loginWithGoogle,
       loginWithGoogleRedirect,
       logout,
       updateReputation,
-      addBadge
+      addBadge,
+      switchRole
     }}>
       {children}
     </AuthContext.Provider>

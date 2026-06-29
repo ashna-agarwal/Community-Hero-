@@ -16,9 +16,9 @@ import { Issue, Comment, Notification, ActivityLog, VerificationRequest } from '
 // Offline detection state to dynamically fall back to local storage
 let isFirebaseOffline = false;
 
-// Check if we should use local mock storage (when Firebase is unconfigured, in sandbox mode, or offline)
+// Check if we should use local storage fallback (when Firebase is unconfigured or offline)
 const isLocalMode = (): boolean => {
-  return !db || isFirebaseOffline || localStorage.getItem('ch_sandbox_mode') === 'true';
+  return !db || isFirebaseOffline;
 };
 
 // Generic error handler
@@ -129,7 +129,7 @@ const SEED_ISSUES: Issue[] = [
     lat: 28.4501,
     lng: 77.0422,
     address: 'Rose Avenue Sector 22, Ward 6',
-    imageUrl: 'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?auto=format&fit=crop&w=600&q=80',
+    imageUrl: 'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?auto=format&fit=crop&w=600&q=80',
     reporterId: 'reporter-3',
     reporterName: 'Divya Sharma',
     votesCount: 34,
@@ -138,7 +138,7 @@ const SEED_ISSUES: Issue[] = [
     assignedOfficerName: 'Manoj Sinha',
     createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    beforeImageUrl: 'https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?auto=format&fit=crop&w=600&q=80',
+    beforeImageUrl: 'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?auto=format&fit=crop&w=600&q=80',
     afterImageUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&w=600&q=80',
     resolutionNotes: 'Replaced all 15 fluorescent bulbs with energy-efficient LED models and fixed local distribution box.',
     // GAP specifics

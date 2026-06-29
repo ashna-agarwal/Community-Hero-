@@ -204,7 +204,7 @@ export const ReportIssueForm: React.FC<ReportIssueFormProps> = ({ onSuccess, onV
     } else {
       // Simulation mode snap - realistic civic photo
       const simulatedImages = [
-        "https://images.unsplash.com/photo-1518241353330-0f7941c2d9b5?auto=format&fit=crop&w=600&q=80", // night lamp
+        "https://images.unsplash.com/photo-1509114397022-ed747cca3f65?auto=format&fit=crop&w=600&q=80", // night lamp
         "https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&w=600&q=80", // water puddle
         "https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&w=600&q=80", // slurry mud
         "https://images.unsplash.com/photo-1584824486509-112e4181ff6b?auto=format&fit=crop&w=600&q=80"  // broken pavement
@@ -421,7 +421,7 @@ export const ReportIssueForm: React.FC<ReportIssueFormProps> = ({ onSuccess, onV
     } catch (err: any) {
       console.warn('Microphone permission or capture failed, falling back to seamless voice note simulation:', err);
       // Even if mic access fails/is denied, we fall back to a simulation to make sure the process works perfectly for the user!
-      setMicError('Actual microphone permission blocked or rejected. Activated sandbox dictation simulator.');
+      setMicError('Microphone permission blocked or unavailable. Speech dictation simulator fallback activated.');
       setIsSimulatedVoice(true);
       setIsRecording(true);
       setRecordingSeconds(0);
@@ -489,14 +489,14 @@ export const ReportIssueForm: React.FC<ReportIssueFormProps> = ({ onSuccess, onV
   const detectLocation = () => {
     setGeoError(null);
     if (!navigator.geolocation) {
-      setGeoError('Geolocation is not supported by your browser. Using simulated sandbox coordinates.');
-      const sandboxLat = 28.4595 + (Math.random() - 0.5) * 0.01;
-      const sandboxLng = 77.0266 + (Math.random() - 0.5) * 0.01;
-      setLat(sandboxLat);
-      setLng(sandboxLng);
-      setMapCenterLat(sandboxLat);
-      setMapCenterLng(sandboxLng);
-      setAddress(`Simulated Location: Sector 29, Gurgaon, Haryana (GPS Offset)`);
+      setGeoError('Geolocation is not supported by your browser. Default staging coordinates applied.');
+      const fallbackLat = 28.4595 + (Math.random() - 0.5) * 0.005;
+      const fallbackLng = 77.0266 + (Math.random() - 0.5) * 0.005;
+      setLat(fallbackLat);
+      setLng(fallbackLng);
+      setMapCenterLat(fallbackLat);
+      setMapCenterLng(fallbackLng);
+      setAddress(`Sector 29, Gurgaon, Haryana (Simulated GPS Offset)`);
       return;
     }
     setIsLocating(true);
@@ -512,19 +512,19 @@ export const ReportIssueForm: React.FC<ReportIssueFormProps> = ({ onSuccess, onV
         setIsLocating(false);
       },
       (err) => {
-        console.warn('Location detection failed, applying simulated coordinate fallback:', err);
-        setGeoError('Browser location blocked or timed out. Simulated coordinates applied for demonstration.');
-        // Sandbox fallback coordinates
-        const sandboxLat = 28.4595 + (Math.random() - 0.5) * 0.01;
-        const sandboxLng = 77.0266 + (Math.random() - 0.5) * 0.01;
-        setLat(sandboxLat);
-        setLng(sandboxLng);
-        setMapCenterLat(sandboxLat);
-        setMapCenterLng(sandboxLng);
-        setAddress(`Simulated Location: Sector 29, Gurgaon, Haryana (GPS Offset)`);
+        console.warn('Location detection failed, applying high-reliability fallback coordinates:', err);
+        setGeoError('Browser location permission blocked or timed out. Default staging coordinates applied.');
+        // High-reliability staging coordinates
+        const fallbackLat = 28.4595 + (Math.random() - 0.5) * 0.005;
+        const fallbackLng = 77.0266 + (Math.random() - 0.5) * 0.005;
+        setLat(fallbackLat);
+        setLng(fallbackLng);
+        setMapCenterLat(fallbackLat);
+        setMapCenterLng(fallbackLng);
+        setAddress(`Sector 29, Gurgaon, Haryana (Simulated GPS Offset)`);
         setIsLocating(false);
       },
-      { timeout: 8000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   };
 
@@ -880,6 +880,11 @@ export const ReportIssueForm: React.FC<ReportIssueFormProps> = ({ onSuccess, onV
                         src={imagePreview} 
                         alt="Civic Proof Preview" 
                         className="rounded-lg max-h-48 border border-slate-200 shadow-sm"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=300&q=80';
+                        }}
                       />
                       <button 
                         type="button"

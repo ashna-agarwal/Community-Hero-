@@ -43,6 +43,8 @@ import {
   dbUpdateMaterialsEstimate
 } from '../services/dbService';
 import { Issue, Comment, ActivityLog, VerificationRequest } from '../types';
+// @ts-ignore
+import noResultsImage from '../assets/images/no_results_1782762505406.jpg';
 import { getIssueActionClassification, ActionClassification } from '../services/classificationService';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -484,9 +486,14 @@ export const DiscoveryFeed: React.FC<DiscoveryFeedProps> = ({
             <p className="text-xs text-slate-500 font-medium">Loading municipal reports registry...</p>
           </div>
         ) : filteredIssues.length === 0 ? (
-          <div className="bg-white border border-slate-100 rounded-2xl p-12 text-center text-slate-400" id="empty-feed">
-            <div className="p-3 bg-slate-50 text-slate-400 rounded-full w-fit mx-auto mb-3">
-              <Search className="w-6 h-6" />
+          <div className="bg-white border border-slate-100 rounded-2xl p-12 text-center text-slate-400 flex flex-col items-center justify-center" id="empty-feed">
+            <div className="w-48 h-48 mb-5 rounded-2xl overflow-hidden shadow-xs border border-slate-100/80 bg-slate-50 flex items-center justify-center">
+              <img 
+                src={noResultsImage} 
+                alt="No community issues found" 
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
             </div>
             <h4 className="text-sm font-semibold text-slate-700">No community issues found</h4>
             <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">

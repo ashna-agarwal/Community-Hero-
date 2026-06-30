@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import exifr from 'exifr';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { 
   Camera, 
   Mic, 
@@ -49,6 +51,145 @@ export const ReportIssueForm: React.FC<ReportIssueFormProps> = ({ onSuccess, onV
   const [mapZoom, setMapZoom] = useState<number>(0.012); // zoom span in degrees
   const [isDraggingPin, setIsDraggingPin] = useState<boolean>(false);
   const [mapStyle, setMapStyle] = useState<'blueprint' | 'hybrid' | 'radar'>('blueprint');
+
+  // Map References and Setup
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+
+  // Reverse Geocoding helper using Nominatim
+  const reverseGeocode = async (latitude: number, longitude: number) => {
+    setAddress('Looking up address...');
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`;
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'CommunityHeroCivicAuditApp/1.0 (contact: gisashna@gmail.com)'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.display_name) {
+          setAddress(data.display_name);
+        } else {
+          setAddress(`Near ${latitude.toFixed(5)}° N, ${longitude.toFixed(5)}° E`);
+        }
+      } else {
+        setAddress(`Near ${latitude.toFixed(5)}° N, ${longitude.toFixed(5)}° E`);
+      }
+    } catch (error) {
+      console.error('Reverse geocoding error:', error);
+      setAddress(`Near ${latitude.toFixed(5)}° N, ${longitude.toFixed(5)}° E`);
+    }
+  };
+
+  const handleManualCoordsChange = (newLat: number, newLng: number) => {
+    setLat(newLat);
+    setLng(newLng);
+    if (mapRef.current) {
+      mapRef.current.setView([newLat, newLng]);
+    }
+    reverseGeocode(newLat, newLng);
+  };
+
+  // Initialize Leaflet Map
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return;
+
+    // Center on existing coordinates or fallback to Gurgaon (Sector 29)
+    const initialLat = lat || 28.4595;
+    const initialLng = lng || 77.0266;
+
+    const map = L.map(mapContainerRef.current, {
+      center: [initialLat, initialLng],
+      zoom: lat ? 15 : 12,
+      zoomControl: false,
+      attributionControl: true
+    });
+
+    mapRef.current = map;
+
+    // Use standard OpenStreetMap tile layer
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // Add standard Zoom control at top-left
+    L.control.zoom({
+      position: 'topleft'
+    }).addTo(map);
+
+    // Trigger map invalidation with a slight timeout to render tiles properly
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 250);
+
+    // Handle clicks to place/re-locate the pin
+    map.on('click', (e) => {
+      const clickedLat = e.latlng.lat;
+      const clickedLng = e.latlng.lng;
+      setLat(clickedLat);
+      setLng(clickedLng);
+      reverseGeocode(clickedLat, clickedLng);
+    });
+
+    return () => {
+      clearTimeout(timer);
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+      markerRef.current = null;
+    };
+  }, []);
+
+  // Update/add draggable marker on map when coordinates change
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (lat === null || lng === null) {
+      if (markerRef.current) {
+        markerRef.current.remove();
+        markerRef.current = null;
+      }
+      return;
+    }
+
+    const pinColor = '#3b82f6'; // Blue-500
+    const customIcon = L.divIcon({
+      html: `
+        <div class="relative flex items-center justify-center cursor-pointer">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${pinColor}" stroke="white" stroke-width="2.5" class="w-8 h-8 drop-shadow-md hover:scale-110 transition-transform duration-200">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
+        </div>
+      `,
+      className: 'custom-report-pin',
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32]
+    });
+
+    if (markerRef.current) {
+      markerRef.current.setLatLng([lat, lng]);
+    } else {
+      const marker = L.marker([lat, lng], {
+        icon: customIcon,
+        draggable: true
+      }).addTo(map);
+
+      marker.on('dragend', () => {
+        const position = marker.getLatLng();
+        setLat(position.lat);
+        setLng(position.lng);
+        reverseGeocode(position.lat, position.lng);
+      });
+
+      markerRef.current = marker;
+    }
+  }, [lat, lng]);
 
   // Sync initial map center
   useEffect(() => {
@@ -489,14 +630,7 @@ export const ReportIssueForm: React.FC<ReportIssueFormProps> = ({ onSuccess, onV
   const detectLocation = () => {
     setGeoError(null);
     if (!navigator.geolocation) {
-      setGeoError('Geolocation is not supported by your browser. Default staging coordinates applied.');
-      const fallbackLat = 28.4595 + (Math.random() - 0.5) * 0.005;
-      const fallbackLng = 77.0266 + (Math.random() - 0.5) * 0.005;
-      setLat(fallbackLat);
-      setLng(fallbackLng);
-      setMapCenterLat(fallbackLat);
-      setMapCenterLng(fallbackLng);
-      setAddress(`Sector 29, Gurgaon, Haryana (Simulated GPS Offset)`);
+      setGeoError('Geolocation is not supported by your browser. Please place a pin manually on the map.');
       return;
     }
     setIsLocating(true);
@@ -508,23 +642,18 @@ export const ReportIssueForm: React.FC<ReportIssueFormProps> = ({ onSuccess, onV
         setLng(longitude);
         setMapCenterLat(latitude);
         setMapCenterLng(longitude);
-        setAddress(`Near ${latitude.toFixed(5)}° N, ${longitude.toFixed(5)}° E`);
+        if (mapRef.current) {
+          mapRef.current.flyTo([latitude, longitude], 15, { animate: true, duration: 1.5 });
+        }
+        await reverseGeocode(latitude, longitude);
         setIsLocating(false);
       },
       (err) => {
-        console.warn('Location detection failed, applying high-reliability fallback coordinates:', err);
-        setGeoError('Browser location permission blocked or timed out. Default staging coordinates applied.');
-        // High-reliability staging coordinates
-        const fallbackLat = 28.4595 + (Math.random() - 0.5) * 0.005;
-        const fallbackLng = 77.0266 + (Math.random() - 0.5) * 0.005;
-        setLat(fallbackLat);
-        setLng(fallbackLng);
-        setMapCenterLat(fallbackLat);
-        setMapCenterLng(fallbackLng);
-        setAddress(`Sector 29, Gurgaon, Haryana (Simulated GPS Offset)`);
+        console.warn('Location detection failed:', err);
+        setGeoError('Location permission was denied or timed out. Please manually place a pin by clicking anywhere on the street tiles.');
         setIsLocating(false);
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
     );
   };
 
@@ -1077,563 +1206,108 @@ export const ReportIssueForm: React.FC<ReportIssueFormProps> = ({ onSuccess, onV
                     </div>
                   )}
 
-                  {lat !== null && lng !== null ? (
-                    (() => {
-                      const latCenter = mapCenterLat || lat || 28.4595;
-                      const lngCenter = mapCenterLng || lng || 77.0266;
-                      const zoom = mapZoom;
-                      const latMin = latCenter - zoom / 2;
-                      const latMax = latCenter + zoom / 2;
-                      const lngMin = lngCenter - zoom / 2;
-                      const lngMax = lngCenter + zoom / 2;
-
-                      // Generate roads
-                      const roadInterval = 0.003;
-                      const latRoads: number[] = [];
-                      const startLatRoad = Math.floor(latMin / roadInterval) * roadInterval;
-                      for (let r = startLatRoad; r <= latMax + roadInterval; r += roadInterval) {
-                        latRoads.push(r);
-                      }
-
-                      const lngRoads: number[] = [];
-                      const startLngRoad = Math.floor(lngMin / roadInterval) * roadInterval;
-                      for (let r = startLngRoad; r <= lngMax + roadInterval; r += roadInterval) {
-                        lngRoads.push(r);
-                      }
-
-                      const getXY = (itemLat: number, itemLng: number) => {
-                        const x = ((itemLng - lngMin) / zoom) * 100;
-                        const y = (1 - (itemLat - latMin) / zoom) * 100;
-                        return { x, y };
-                      };
-
-                      const activePinXY = getXY(lat, lng);
-
-                      const themeStyles = {
-                        blueprint: {
-                          bg: 'bg-slate-950 border-slate-800',
-                          gridColor: 'stroke-blue-500/10',
-                          roadColor: 'stroke-blue-400/25',
-                          roadLabel: 'text-[8px] fill-blue-400/60 font-bold select-none pointer-events-none uppercase tracking-wider',
-                          parkColor: 'fill-emerald-500/10 stroke-emerald-500/20',
-                          riverColor: 'fill-none stroke-cyan-500/20 stroke-[8]',
-                          pinColor: 'text-cyan-400 fill-cyan-950',
-                          pinPulse: 'bg-cyan-500/20 border-cyan-400'
-                        },
-                        hybrid: {
-                          bg: 'bg-neutral-100 border-neutral-300',
-                          gridColor: 'stroke-slate-300/40',
-                          roadColor: 'stroke-amber-400/70',
-                          roadLabel: 'text-[8px] fill-slate-500 font-bold select-none pointer-events-none uppercase tracking-wider',
-                          parkColor: 'fill-green-100 stroke-green-300',
-                          riverColor: 'fill-none stroke-sky-300 stroke-[8]',
-                          pinColor: 'text-red-500 fill-red-100',
-                          pinPulse: 'bg-red-500/20 border-red-400'
-                        },
-                        radar: {
-                          bg: 'bg-zinc-950 border-emerald-950',
-                          gridColor: 'stroke-emerald-500/10',
-                          roadColor: 'stroke-emerald-500/30',
-                          roadLabel: 'text-[8px] fill-emerald-400/80 font-mono select-none pointer-events-none uppercase tracking-wider',
-                          parkColor: 'fill-emerald-950/20 stroke-emerald-500/30',
-                          riverColor: 'fill-none stroke-emerald-600/15 stroke-[4]',
-                          pinColor: 'text-lime-400 fill-lime-950',
-                          pinPulse: 'bg-lime-500/30 border-lime-400'
-                        }
-                      };
-
-                      const currentTheme = themeStyles[mapStyle];
-
-                      const handleMapMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-                        setIsDraggingPin(true);
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const clickX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                        const clickY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
-                        
-                        const newLng = lngMin + clickX * zoom;
-                        const newLat = latMax - clickY * zoom;
-                        
-                        setLat(newLat);
-                        setLng(newLng);
-                        updateSimulatedAddress(newLat, newLng);
-                      };
-
-                      const handleMapTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-                        if (e.touches.length === 0) return;
-                        setIsDraggingPin(true);
-                        const touch = e.touches[0];
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const clickX = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
-                        const clickY = Math.max(0, Math.min(1, (touch.clientY - rect.top) / rect.height));
-                        
-                        const newLng = lngMin + clickX * zoom;
-                        const newLat = latMax - clickY * zoom;
-                        
-                        setLat(newLat);
-                        setLng(newLng);
-                        updateSimulatedAddress(newLat, newLng);
-                      };
-
-                      const handleMapMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-                        if (!isDraggingPin) return;
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const clickX = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-                        const clickY = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
-                        
-                        const newLng = lngMin + clickX * zoom;
-                        const newLat = latMax - clickY * zoom;
-                        
-                        setLat(newLat);
-                        setLng(newLng);
-                        updateSimulatedAddress(newLat, newLng);
-                      };
-
-                      const handleMapTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
-                        if (!isDraggingPin) return;
-                        if (e.touches.length === 0) return;
-                        const touch = e.touches[0];
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        const clickX = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
-                        const clickY = Math.max(0, Math.min(1, (touch.clientY - rect.top) / rect.height));
-                        
-                        const newLng = lngMin + clickX * zoom;
-                        const newLat = latMax - clickY * zoom;
-                        
-                        setLat(newLat);
-                        setLng(newLng);
-                        updateSimulatedAddress(newLat, newLng);
-                      };
-
-                      const updateSimulatedAddress = (newLat: number, newLng: number) => {
-                        const latStep = Math.floor(newLat * 100) / 100;
-                        const lngStep = Math.floor(newLng * 100) / 100;
-                        
-                        let streetName = "Civic Lane";
-                        const latOffset = newLat - latStep;
-                        const lngOffset = newLng - lngStep;
-                        
-                        if (Math.abs(latOffset - 0.005) < 0.002) {
-                          streetName = "Oak Avenue";
-                        } else if (Math.abs(latOffset) < 0.002) {
-                          streetName = "Grand Boulevard";
-                        } else if (Math.abs(latOffset + 0.005) < 0.002) {
-                          streetName = "Market Road";
-                        } else if (Math.abs(lngOffset - 0.005) < 0.002) {
-                          streetName = "Rose Street";
-                        } else if (Math.abs(lngOffset) < 0.002) {
-                          streetName = "Pine Street";
-                        } else if (Math.abs(lngOffset + 0.005) < 0.002) {
-                          streetName = "Forest Road";
-                        }
-                        
-                        const distanceOffset = Math.round(Math.sqrt(latOffset * latOffset + lngOffset * lngOffset) * 111000);
-                        setAddress(`Adjusted: Near ${streetName} (${distanceOffset}m Offset)`);
-                      };
-
-                      const nudgePin = (direction: 'N' | 'S' | 'E' | 'W') => {
-                        const step = 0.0001; // ~11 meters
-                        let newLat = lat;
-                        let newLng = lng;
-                        if (direction === 'N') newLat += step;
-                        else if (direction === 'S') newLat -= step;
-                        else if (direction === 'E') newLng += step;
-                        else if (direction === 'W') newLng -= step;
-                        setLat(newLat);
-                        setLng(newLng);
-                        updateSimulatedAddress(newLat, newLng);
-                      };
-
-                      const panViewport = (direction: 'N' | 'S' | 'E' | 'W') => {
-                        const panStep = zoom * 0.25;
-                        let newCenterLat = latCenter;
-                        let newCenterLng = lngCenter;
-                        if (direction === 'N') newCenterLat += panStep;
-                        else if (direction === 'S') newCenterLat -= panStep;
-                        else if (direction === 'E') newCenterLng += panStep;
-                        else if (direction === 'W') newCenterLng -= panStep;
-                        setMapCenterLat(newCenterLat);
-                        setMapCenterLng(newCenterLng);
-                      };
-
-                      return (
-                        <div className="text-left space-y-3" id="gis-map-editor">
-                          {/* Top Controls Bar */}
-                          <div className="flex items-center justify-between gap-2 bg-slate-50 border border-slate-100 p-2 rounded-xl text-xs">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] font-bold text-slate-500 uppercase">Map Canvas Adjustment</span>
-                            </div>
-
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-0.5">
-                                <Layers className="w-3 h-3" />
-                                Style:
-                              </span>
-                              <div className="bg-slate-200/50 p-0.5 rounded-lg flex gap-0.5">
-                                {(['blueprint', 'hybrid', 'radar'] as const).map((style) => (
-                                  <button
-                                    key={style}
-                                    type="button"
-                                    onClick={() => setMapStyle(style)}
-                                    className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider transition-all ${
-                                      mapStyle === style
-                                        ? 'bg-white text-blue-700 shadow-xs'
-                                        : 'text-slate-500 hover:text-slate-800'
-                                    }`}
-                                  >
-                                    {style}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Live Address & Geo coordinates details */}
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 text-xs bg-blue-50/50 p-3 rounded-xl border border-blue-100/60">
-                            <div className="flex items-center gap-2">
-                              <MapPin className="w-4 h-4 shrink-0 text-blue-600 animate-bounce" />
-                              <span className="font-semibold text-blue-800 line-clamp-1">{address}</span>
-                            </div>
-                            <span className="text-[10px] font-mono text-blue-600 font-semibold bg-white/80 px-2 py-0.5 rounded border border-blue-100 shrink-0">
-                              {lat.toFixed(6)}°, {lng.toFixed(6)}°
-                            </span>
-                          </div>
-
-                          {/* Map Split Arena */}
-                          <div className="grid grid-cols-1 lg:grid-cols-10 gap-3">
-                            {/* Map Canvas Frame */}
-                            <div className="relative border rounded-2xl overflow-hidden cursor-crosshair group lg:col-span-10 h-48 md:h-52 flex items-center justify-center select-none"
-                              style={{ touchAction: 'none' }}
-                              onMouseDown={handleMapMouseDown}
-                              onMouseMove={handleMapMouseMove}
-                              onMouseUp={() => setIsDraggingPin(false)}
-                              onMouseLeave={() => setIsDraggingPin(false)}
-                              onTouchStart={handleMapTouchStart}
-                              onTouchMove={handleMapTouchMove}
-                              onTouchEnd={() => setIsDraggingPin(false)}
-                            >
-                              {/* Background color based on style */}
-                              <div className={`absolute inset-0 transition-colors duration-500 ${currentTheme.bg}`}></div>
-
-                              {/* Canvas SVG roads/features */}
-                              <svg className="absolute inset-0 w-full h-full pointer-events-none select-none">
-                                {/* Grid Pattern */}
-                                <g className="opacity-40">
-                                  {latRoads.map((roadLat, idx) => {
-                                    const pos = getXY(roadLat, lngCenter);
-                                    return (
-                                      <line
-                                        key={`grid-lat-${idx}`}
-                                        x1="0"
-                                        y1={`${pos.y}%`}
-                                        x2="100%"
-                                        y2={`${pos.y}%`}
-                                        className={currentTheme.gridColor}
-                                        strokeWidth={1}
-                                        strokeDasharray={4}
-                                      />
-                                    );
-                                  })}
-                                  {lngRoads.map((roadLng, idx) => {
-                                    const pos = getXY(latCenter, roadLng);
-                                    return (
-                                      <line
-                                        key={`grid-lng-${idx}`}
-                                        x1={`${pos.x}%`}
-                                        y1="0"
-                                        y2="100%"
-                                        className={currentTheme.gridColor}
-                                        strokeWidth={1}
-                                        strokeDasharray={4}
-                                      />
-                                    );
-                                  })}
-                                </g>
-
-                                {/* Shaded Park Block */}
-                                {(() => {
-                                  const parkLat = Math.round(latCenter / 0.01) * 0.01 + 0.0015;
-                                  const parkLng = Math.round(lngCenter / 0.01) * 0.01 - 0.0018;
-                                  const parkSize = 0.0025;
-                                  const tl = getXY(parkLat + parkSize / 2, parkLng - parkSize / 2);
-                                  const br = getXY(parkLat - parkSize / 2, parkLng + parkSize / 2);
-                                  
-                                  if (tl.x < 100 && br.x > 0 && tl.y < 100 && br.y > 0) {
-                                    return (
-                                      <g>
-                                        <rect 
-                                          x={`${tl.x}%`} 
-                                          y={`${tl.y}%`} 
-                                          width={`${br.x - tl.x}%`} 
-                                          height={`${br.y - tl.y}%`} 
-                                          className={currentTheme.parkColor}
-                                          rx={6}
-                                        />
-                                        <text 
-                                          x={`${(tl.x + br.x) / 2}%`} 
-                                          y={`${(tl.y + br.y) / 2}%`} 
-                                          className="text-[7px] font-bold fill-emerald-500/80 font-sans tracking-wide"
-                                          textAnchor="middle"
-                                        >
-                                          🌳 CIVIC RESERVE PARK
-                                        </text>
-                                      </g>
-                                    );
-                                  }
-                                  return null;
-                                })()}
-
-                                {/* Shaded River path */}
-                                {(() => {
-                                  const rPoints = [];
-                                  for (let i = 0; i <= 8; i++) {
-                                    const stepLng = lngMin + (i / 8) * zoom;
-                                    const stepLat = latCenter - Math.sin(i / 2) * 0.0015 - 0.0025;
-                                    rPoints.push(getXY(stepLat, stepLng));
-                                  }
-                                  const dPath = rPoints.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x}% ${p.y}%`).join(' ');
-                                  return (
-                                    <path 
-                                      d={dPath} 
-                                      className={currentTheme.riverColor} 
-                                      strokeLinecap="round"
-                                      fill="none"
-                                    />
-                                  );
-                                })()}
-
-                                {/* Horizontal roads */}
-                                {latRoads.map((roadLat, index) => {
-                                  const pos = getXY(roadLat, lngCenter);
-                                  const label = getStreetName(roadLat, true);
-                                  if (pos.y >= 0 && pos.y <= 100) {
-                                    return (
-                                      <g key={`lat-${index}`}>
-                                        <line 
-                                          x1="0" 
-                                          y1={`${pos.y}%`} 
-                                          x2="100%" 
-                                          y2={`${pos.y}%`} 
-                                          className={currentTheme.roadColor} 
-                                          strokeWidth={4}
-                                        />
-                                        <text 
-                                          x="15%" 
-                                          y={`${pos.y - 1.5}%`} 
-                                          className={currentTheme.roadLabel}
-                                        >
-                                          {label}
-                                        </text>
-                                      </g>
-                                    );
-                                  }
-                                  return null;
-                                })}
-
-                                {/* Vertical roads */}
-                                {lngRoads.map((roadLng, index) => {
-                                  const pos = getXY(latCenter, roadLng);
-                                  const label = getStreetName(roadLng, false);
-                                  if (pos.x >= 0 && pos.x <= 100) {
-                                    return (
-                                      <g key={`lng-${index}`}>
-                                        <line 
-                                          x1={`${pos.x}%`} 
-                                          y1="0" 
-                                          x2={`${pos.x}%`} 
-                                          y2="100%" 
-                                          className={currentTheme.roadColor} 
-                                          strokeWidth={4}
-                                        />
-                                        <text 
-                                          x={`${pos.x + 1}%`} 
-                                          y="75%" 
-                                          className={currentTheme.roadLabel} 
-                                          transform={`rotate(-90, ${pos.x}, 75)`}
-                                        >
-                                          {label}
-                                        </text>
-                                      </g>
-                                    );
-                                  }
-                                  return null;
-                                })}
-                              </svg>
-
-                              {/* Interactive accuracy/hover rings centered on Pin */}
-                              {activePinXY.x >= -10 && activePinXY.x <= 110 && activePinXY.y >= -10 && activePinXY.y <= 110 && (
-                                <div 
-                                  className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed animate-pulse pointer-events-none transition-all duration-300 ${currentTheme.pinPulse}`}
-                                  style={{ left: `${activePinXY.x}%`, top: `${activePinXY.y}%`, width: '48px', height: '48px' }}
-                                />
-                              )}
-
-                              {/* Drag-adjustable Marker Pin */}
-                              {activePinXY.x >= -10 && activePinXY.x <= 110 && activePinXY.y >= -10 && activePinXY.y <= 110 && (
-                                <div 
-                                  className={`absolute -translate-x-1/2 -translate-y-full cursor-grab active:cursor-grabbing select-none z-10 transition-all ${
-                                    isDraggingPin ? 'scale-125 drop-shadow-2xl' : 'hover:scale-110'
-                                  }`}
-                                  style={{ left: `${activePinXY.x}%`, top: `${activePinXY.y}%` }}
-                                  onMouseDown={(e) => {
-                                    e.stopPropagation();
-                                    setIsDraggingPin(true);
-                                  }}
-                                  onTouchStart={(e) => {
-                                    e.stopPropagation();
-                                    setIsDraggingPin(true);
-                                  }}
-                                >
-                                  <div className="relative flex flex-col items-center">
-                                    <MapPin className={`w-8 h-8 drop-shadow-lg filter ${currentTheme.pinColor}`} />
-                                    {/* Tooltip on hover */}
-                                    <span className="absolute -top-7 bg-slate-900/95 text-white text-[9px] font-bold px-2 py-0.5 rounded shadow-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                      DRAG ME
-                                    </span>
-                                    <span className="w-2.5 h-1 bg-black/40 rounded-full blur-[2px] mt-0.5"></span>
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Instruction overlay badge */}
-                              <div className="absolute top-2 right-2 bg-slate-900/80 text-white text-[9px] font-bold px-2 py-0.5 rounded-lg backdrop-blur-xs select-none pointer-events-none border border-white/10 flex items-center gap-1 shadow-xs">
-                                <Navigation className="w-2.5 h-2.5 text-blue-400 animate-pulse" />
-                                <span>Click anywhere or drag pin to re-adjust</span>
-                              </div>
-
-                              {/* Navigation / Zoom D-Pad Controls overlay */}
-                              <div className="absolute bottom-2 right-2 bg-slate-900/80 p-1.5 rounded-xl border border-white/15 flex items-center gap-1.5 backdrop-blur-xs shadow-md">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setMapZoom(prev => Math.max(0.003, prev - 0.0025));
-                                  }}
-                                  className="p-1 rounded bg-white/10 hover:bg-white/20 text-white transition-all"
-                                  title="Zoom In"
-                                >
-                                  <ZoomIn className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setMapZoom(prev => Math.min(0.035, prev + 0.0025));
-                                  }}
-                                  className="p-1 rounded bg-white/10 hover:bg-white/20 text-white transition-all"
-                                  title="Zoom Out"
-                                >
-                                  <ZoomOut className="w-3.5 h-3.5" />
-                                </button>
-                                <div className="h-4 w-[1px] bg-white/20" />
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setMapCenterLat(lat);
-                                    setMapCenterLng(lng);
-                                  }}
-                                  className="p-1 rounded bg-blue-600 hover:bg-blue-500 text-white transition-all text-[9px] font-bold px-2 flex items-center gap-1 shadow-xs"
-                                  title="Center viewport on marker"
-                                >
-                                  <Navigation className="w-3 h-3 rotate-45" />
-                                  Recenter
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Explicit manual lat/lng editing and Address */}
-                          <div className="space-y-3 border-t border-slate-100 pt-3">
-                            <div>
-                              <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Estimated / Chosen Address</span>
-                              <div className="relative">
-                                <input 
-                                  type="text" 
-                                  value={address} 
-                                  onChange={(e) => setAddress(e.target.value)}
-                                  placeholder="Reverse geocoding address..."
-                                  className="w-full bg-slate-50 hover:bg-white border border-slate-200 rounded-xl p-2.5 pl-8 text-[12px] font-semibold text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-2xs"
-                                />
-                                <MapPin className="w-3.5 h-3.5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-3 text-xs">
-                              <div>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Latitude Coordinate</span>
-                                <input 
-                                  type="number" 
-                                  step="0.000001"
-                                  value={lat} 
-                                  onChange={(e) => {
-                                    const val = parseFloat(e.target.value);
-                                    if (!isNaN(val)) {
-                                      setLat(val);
-                                      setMapCenterLat(val);
-                                      setAddress(`Manually Adjusted: (${val.toFixed(5)}, ${lng.toFixed(5)})`);
-                                    }
-                                  }}
-                                  className="w-full bg-slate-50 hover:bg-white border border-slate-200 rounded-xl p-2.5 text-[12px] font-mono font-semibold text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-2xs"
-                                />
-                              </div>
-                              <div>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Longitude Coordinate</span>
-                                <input 
-                                  type="number" 
-                                  step="0.000001"
-                                  value={lng} 
-                                  onChange={(e) => {
-                                    const val = parseFloat(e.target.value);
-                                    if (!isNaN(val)) {
-                                      setLng(val);
-                                      setMapCenterLng(val);
-                                      setAddress(`Manually Adjusted: (${lat.toFixed(5)}, ${val.toFixed(5)})`);
-                                    }
-                                  }}
-                                  className="w-full bg-slate-50 hover:bg-white border border-slate-200 rounded-xl p-2.5 text-[12px] font-mono font-semibold text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-2xs"
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Reset to device location */}
-                          <div className="flex items-center justify-between pt-1">
-                            <button 
-                              type="button" 
-                              onClick={detectLocation}
-                              className="text-[11px] text-blue-600 font-bold hover:underline flex items-center gap-1 bg-blue-50/70 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-xl transition-all shadow-2xs"
-                            >
-                              <RotateCcw className="w-3.5 h-3.5" />
-                              Reset Viewport to Device GPS
-                            </button>
-                            <span className="text-[10px] text-slate-400 font-mono italic">Adjust viewport or coordinates as needed</span>
-                          </div>
-                        </div>
-                      );
-                    })()
-                  ) : (
-                    <div className="space-y-3 text-center py-4 my-auto">
-                      <p className="text-xs text-slate-500">Enable location tag so repair crews can locate the problem.</p>
-                      <button 
-                        type="button"
-                        onClick={detectLocation}
-                        disabled={isLocating}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl hover:bg-blue-700 shadow-md transition-all active:scale-95"
-                      >
-                        {isLocating ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin text-white" />
-                            Acquiring GPS...
-                          </>
-                        ) : (
-                          <>
-                            <MapPin className="w-4 h-4 text-white animate-bounce" />
-                            Detect My Location
-                          </>
-                        )}
-                      </button>
+                  {/* Leaflet Map Div */}
+                  <div className="relative w-full rounded-xl border border-slate-200 shadow-inner overflow-hidden z-0" style={{ height: '280px', minHeight: '260px' }}>
+                    <div ref={mapContainerRef} className="w-full h-full" />
+                    
+                    {/* Tiny Floating Help Overlay */}
+                    <div className="absolute top-2 right-2 bg-slate-900/80 text-white text-[9px] font-bold px-2 py-0.5 rounded-lg backdrop-blur-xs select-none pointer-events-none border border-white/10 flex items-center gap-1 shadow-xs z-[1000]">
+                      <Navigation className="w-2.5 h-2.5 text-blue-400 animate-pulse" />
+                      <span>Click anywhere or drag pin to adjust</span>
                     </div>
-                  )}
+                  </div>
+
+                  {/* Use Current Location Button (Default/Primary) */}
+                  <button
+                    type="button"
+                    onClick={detectLocation}
+                    disabled={isLocating}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-xs font-bold rounded-xl shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
+                  >
+                    {isLocating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-white" />
+                        <span>Acquiring GPS Location...</span>
+                      </>
+                    ) : (
+                      <>
+                        <MapPin className="w-4 h-4 text-white animate-bounce" />
+                        <span>Use My Current Location</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Explicit manual lat/lng editing and Address */}
+                  <div className="space-y-3 border-t border-slate-100 pt-3">
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Estimated / Chosen Address</span>
+                      <div className="relative">
+                        <input 
+                          type="text" 
+                          value={address} 
+                          onChange={(e) => setAddress(e.target.value)}
+                          placeholder="Click on the map or use GPS to reverse-geocode address..."
+                          className="w-full bg-slate-50 hover:bg-white border border-slate-200 rounded-xl p-2.5 pl-8 text-[12px] font-semibold text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-2xs"
+                        />
+                        <MapPin className="w-3.5 h-3.5 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Latitude Coordinate</span>
+                        <input 
+                          type="number" 
+                          step="0.000001"
+                          value={lat !== null ? lat : ''} 
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            if (!isNaN(val)) {
+                              handleManualCoordsChange(val, lng || 77.0266);
+                            }
+                          }}
+                          placeholder="e.g. 28.4595"
+                          className="w-full bg-slate-50 hover:bg-white border border-slate-200 rounded-xl p-2.5 text-[12px] font-mono font-semibold text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-2xs"
+                        />
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Longitude Coordinate</span>
+                        <input 
+                          type="number" 
+                          step="0.000001"
+                          value={lng !== null ? lng : ''} 
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            if (!isNaN(val)) {
+                              handleManualCoordsChange(lat || 28.4595, val);
+                            }
+                          }}
+                          placeholder="e.g. 77.0266"
+                          className="w-full bg-slate-50 hover:bg-white border border-slate-200 rounded-xl p-2.5 text-[12px] font-mono font-semibold text-slate-800 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-2xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Recentering option */}
+                  <div className="flex items-center justify-between pt-1">
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        if (mapRef.current) {
+                          const targetLat = lat || 28.4595;
+                          const targetLng = lng || 77.0266;
+                          mapRef.current.flyTo([targetLat, targetLng], 15, { animate: true, duration: 1.2 });
+                        }
+                      }}
+                      disabled={lat === null || lng === null}
+                      className="text-[11px] text-blue-600 font-bold hover:underline disabled:text-slate-400 disabled:no-underline flex items-center gap-1 bg-blue-50/70 hover:bg-blue-100 disabled:bg-slate-50 border border-blue-200 disabled:border-slate-100 px-3 py-1.5 rounded-xl transition-all shadow-2xs"
+                    >
+                      <Navigation className="w-3.5 h-3.5 rotate-45" />
+                      Recenter Map on Pin
+                    </button>
+                    <span className="text-[10px] text-slate-400 font-mono italic">Adjust viewport or coordinates as needed</span>
+                  </div>
                 </div>
               </div>
             </div>

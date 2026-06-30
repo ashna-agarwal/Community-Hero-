@@ -33,126 +33,96 @@ const handleDBError = (action: string, error: any) => {
  */
 const SEED_ISSUES: Issue[] = [
   {
-    id: 'issue-101',
-    title: 'Flooded Main Junction & Sewage Overflow',
-    description: 'The main crossing in Sector 56 is completely submerged due to sewage blockages. Traffic is halted, causing huge delays for 5000+ daily commuters. AI merged 500 separate citizen complaints.',
-    category: 'Water & Sewage',
-    department: 'Water & Sewage Authority',
+    id: 'gurgaon-101',
+    title: 'Deep Crater Potholes on NH-48 Service Lane',
+    description: 'Three extremely deep crater potholes on the NH-48 service lane near IFFCO Chowk. Already caused multiple bike skid accidents. Very dangerous during waterlogging.',
+    category: 'Potholes & Roads',
+    department: 'Public Works Dept',
     status: 'In Progress',
     severity: 'Critical',
     priority: 'Critical',
-    lat: 28.4595,
-    lng: 77.0266,
-    address: 'Sector 56 Crossroad, Gurgaon',
-    imageUrl: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=600&q=80',
-    reporterId: 'reporter-1',
-    reporterName: 'Ashna Agarwal',
-    votesCount: 420,
-    voters: ['user-1', 'user-2', 'user-3'],
-    assignedOfficerId: 'officer-1',
-    assignedOfficerName: 'Sanjay Dutt',
-    createdAt: new Date(Date.now() - 32 * 24 * 60 * 60 * 1000).toISOString(), // 32 days ago
-    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    // GAP specifics
-    priorityScore: 97,
-    credibilityScore: 98,
-    credibilityExplanation: 'Multi-spectral image metadata aligns with GPS tag. Historical flood report consistent.',
-    escalationLevel: 2, // Escalated to Department Head
-    escalationDate: new Date(Date.now() - 17 * 24 * 60 * 60 * 1000).toISOString(),
-    isMerged: true,
-    affectedCount: 500,
-    materialsEstimate: {
-      cost: 3450,
-      items: [
-        { name: 'Heavy Duty Sewer Outlet Pipes (12")', qty: 6, unit: 'm', cost: 1200 },
-        { name: 'Industrial Excavator Rental', qty: 2, unit: 'days', cost: 1500 },
-        { name: 'Quick-Setting Structural Concrete', qty: 15, unit: 'bags', cost: 450 },
-        { name: 'Protective Crew Gear & Safety Signage', qty: 10, unit: 'units', cost: 300 }
-      ]
-    },
-    communityPledges: [
-      { userId: 'reporter-1', userName: 'Ashna Agarwal', hours: 4, pledgeType: 'cleanup', notes: 'I will coordinate the volunteer cleanup session once sewer flow returns to normal.' },
-      { userId: 'user-2', userName: 'Pranav Roy', pledgeType: 'supplies', notes: 'Happy to provide 5 boxes of standard trash grabbers and heavy trash bags.' }
-    ]
-  },
-  {
-    id: 'issue-102',
-    title: 'Dangerous Deep Potholes',
-    description: 'Multiple cavernous potholes on the main market road. Already caused two two-wheeler accidents this week. Delayed by Rajesh Kumar Rajesh of PWD Gurgaon.',
-    category: 'Potholes & Roads',
-    department: 'Public Works Dept',
-    status: 'Under Review',
-    severity: 'High',
-    priority: 'High',
-    lat: 28.4682,
-    lng: 77.0329,
-    address: 'Central Market main avenue, Ward 8',
+    lat: 28.4712,
+    lng: 77.0725,
+    address: 'NH-48 Service Road, Near IFFCO Chowk Metro Station, Gurgaon',
     imageUrl: 'https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&w=600&q=80',
-    reporterId: 'reporter-2',
-    reporterName: 'Amit Shah',
-    votesCount: 88,
-    voters: ['user-2'],
+    reporterId: 'reporter-ashna',
+    reporterName: 'Ashna Agarwal',
+    votesCount: 145,
+    voters: ['reporter-amit', 'reporter-divya'],
     assignedOfficerId: 'officer-rajesh',
     assignedOfficerName: 'Rajesh Kumar',
-    createdAt: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(), // 18 days ago
-    updatedAt: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString(),
-    // GAP specifics
-    priorityScore: 75,
-    credibilityScore: 92,
-    credibilityExplanation: 'AI structural damage scanning matches local user report history. High contrast image verify.',
-    escalationLevel: 1, // Escalated to Senior Officer
-    escalationDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    isMerged: false,
-    affectedCount: 1,
-    materialsEstimate: {
-      cost: 840,
-      items: [
-        { name: 'Rapid Cold Patch Asphalt Mix', qty: 12, unit: 'bags', cost: 360 },
-        { name: 'Manual Vibratory Asphalt Tamper Rental', qty: 1, unit: 'day', cost: 180 },
-        { name: 'Safety Delineator Barricade Cones', qty: 4, unit: 'units', cost: 100 },
-        { name: 'Heavy Bitumen Tack Coat Emulsion', qty: 4, unit: 'buckets', cost: 200 }
-      ]
-    },
-    communityPledges: [
-      { userId: 'user-3', userName: 'Karan Mehra', hours: 3, pledgeType: 'labor', notes: 'I have a shovel and manual tamper. Happy to assist in filling!' }
-    ]
-  },
-  {
-    id: 'issue-103',
-    title: 'Complete Blackout on Rose Street',
-    description: 'All 15 streetlights have been completely dead for 2 weeks, making the street pitch-black and unsafe for women and children at night.',
-    category: 'Streetlights & Electricity',
-    department: 'Traffic Engineering',
-    status: 'Community Verification',
-    severity: 'Medium',
-    priority: 'Medium',
-    lat: 28.4501,
-    lng: 77.0422,
-    address: 'Rose Avenue Sector 22, Ward 6',
-    imageUrl: 'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?auto=format&fit=crop&w=600&q=80',
-    reporterId: 'reporter-3',
-    reporterName: 'Divya Sharma',
-    votesCount: 34,
-    voters: [],
-    assignedOfficerId: 'officer-3',
-    assignedOfficerName: 'Manoj Sinha',
-    createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
     updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    beforeImageUrl: 'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?auto=format&fit=crop&w=600&q=80',
-    afterImageUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&w=600&q=80',
-    resolutionNotes: 'Replaced all 15 fluorescent bulbs with energy-efficient LED models and fixed local distribution box.',
-    // GAP specifics
-    priorityScore: 45,
-    credibilityScore: 89,
-    credibilityExplanation: 'No image modification detected. Exif metadata is fully compliant.',
+    priorityScore: 92,
+    credibilityScore: 98,
+    credibilityExplanation: 'Image analysis shows severe pavement erosion and deep structure damage. Location GPS matches.',
     escalationLevel: 0,
     isMerged: false,
     affectedCount: 1
   },
   {
-    id: 'issue-104',
-    title: 'Toxic Slurry Dumping near Forest Boundary',
-    description: 'Unknown tankers illegally dumping chemical industrial sludge near the local natural forest buffer. Foul smell spreading.',
+    id: 'gurgaon-102',
+    title: 'Sewage Overflow and Flooding in Sector 45',
+    description: 'The primary sewer line near Artemis Hospital has ruptured. Extremely foul-smelling black water is flooding Sector 45 main lane, entering several houses.',
+    category: 'Water & Sewage',
+    department: 'Water & Sewage Authority',
+    status: 'In Progress',
+    severity: 'High',
+    priority: 'High',
+    lat: 28.4415,
+    lng: 77.0621,
+    address: 'Lane 4, Sector 45, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-amit',
+    reporterName: 'Amit Shah',
+    votesCount: 92,
+    voters: ['reporter-ashna'],
+    assignedOfficerId: 'officer-sanjay',
+    assignedOfficerName: 'Sanjay Dutt',
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 84,
+    credibilityScore: 94,
+    credibilityExplanation: 'Water contamination detected by spectral highlights. Stench and flooding hazard verified.',
+    escalationLevel: 0,
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-103',
+    title: 'Flickering Streetlights on Sector 54 Service Lane',
+    description: 'All 12 streetlights on the Sector 54 service lane are completely dark. This stretch is extremely isolated and unsafe for women returning from metro late at night.',
+    category: 'Streetlights & Electricity',
+    department: 'Traffic Engineering',
+    status: 'Community Verification',
+    severity: 'Medium',
+    priority: 'Medium',
+    lat: 28.4285,
+    lng: 77.1001,
+    address: 'Golf Course Road Service Lane, Sector 54, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-divya',
+    reporterName: 'Divya Sharma',
+    votesCount: 78,
+    voters: ['reporter-ashna', 'reporter-amit'],
+    assignedOfficerId: 'officer-manoj',
+    assignedOfficerName: 'Manoj Sinha',
+    createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(), // 25 days ago
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    beforeImageUrl: 'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?auto=format&fit=crop&w=600&q=80',
+    afterImageUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&w=600&q=80',
+    resolutionNotes: 'Replaced dead fluorescent bulbs with energy-efficient LED assemblies and checked supply line.',
+    priorityScore: 45,
+    credibilityScore: 89,
+    credibilityExplanation: 'Night exposure confirms streetlight failure. AI vision validated replacement details with high accuracy.',
+    escalationLevel: 0,
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-104',
+    title: 'Toxic Industrial Waste Dumping near Forest Border',
+    description: 'Unidentified tankers are dumping commercial chemical sludge under the cover of night. Breeding chemical hazard and spreading chemical fumes.',
     category: 'Waste & Sanitation',
     department: 'Sanitation Department',
     status: 'Submitted',
@@ -160,18 +130,623 @@ const SEED_ISSUES: Issue[] = [
     priority: 'High',
     lat: 28.4320,
     lng: 77.0180,
-    address: 'Forest Road Border, Ward 8',
+    address: 'Forest Boundary Road, Ward 8, Gurgaon',
     imageUrl: 'https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&w=600&q=80',
-    reporterId: 'reporter-4',
+    reporterId: 'reporter-karan',
     reporterName: 'Karan Mehra',
-    votesCount: 125,
-    voters: [],
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    votesCount: 210,
+    voters: ['reporter-ashna'],
+    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
     updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    // GAP specifics
-    priorityScore: 85,
+    priorityScore: 88,
+    credibilityScore: 96,
+    credibilityExplanation: 'AI chemical slurry inspection indicates critical hazard. Corrosive surface elements detected.',
+    escalationLevel: 0,
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-105',
+    title: 'Water Main Valve Leakage in Sector 56 Huda Market',
+    description: 'High pressure drinking water main valve is damaged and leaking massive quantities of clean water, flooding the market complex entrance.',
+    category: 'Water & Sewage',
+    department: 'Water & Sewage Authority',
+    status: 'In Progress',
+    severity: 'Medium',
+    priority: 'Medium',
+    lat: 28.4355,
+    lng: 77.0851,
+    address: 'Sector 56 HUDA Market, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-ashna',
+    reporterName: 'Ashna Agarwal',
+    votesCount: 45,
+    voters: [],
+    assignedOfficerId: 'officer-sanjay',
+    assignedOfficerName: 'Sanjay Dutt',
+    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days ago
+    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 65,
+    credibilityScore: 90,
+    credibilityExplanation: 'Water spraying from valve joint. Leak rate analyzed from frame movement.',
+    escalationLevel: 0,
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-106',
+    title: 'Dangerous Open Wire Junction Box near Sukhrali',
+    description: 'An electrical distribution panel has its steel door broken, leaving naked 440V copper cables exposed at shoulder level in a high pedestrian zone.',
+    category: 'Streetlights & Electricity',
+    department: 'Traffic Engineering',
+    status: 'Submitted',
+    severity: 'Critical',
+    priority: 'Critical',
+    lat: 28.4752,
+    lng: 77.0655,
+    address: 'Main Market Road, Sukhrali, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1544724569-5f546fd6f2b5?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-amit',
+    reporterName: 'Amit Shah',
+    votesCount: 189,
+    voters: [],
+    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 days ago (Escalated, older than SLA, no officer)
+    updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 95,
+    credibilityScore: 98,
+    credibilityExplanation: 'Naked wiring verified using visual node network. Serious electrocution risk confirmed.',
+    escalationLevel: 2, // Escalated to Department Head due to 10 days delay
+    escalationDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-107',
+    title: 'Broken Interlocking Tiles at Leisure Valley Park',
+    description: 'The senior citizen walkway inside Leisure Valley has collapsed tiles over 15 meters, making it extremely unsafe for morning walks.',
+    category: 'Public Parks',
+    department: 'Parks & Recreation',
+    status: 'Resolved',
+    severity: 'Low',
+    priority: 'Low',
+    lat: 28.4690,
+    lng: 77.0675,
+    address: 'Walking Track, Leisure Valley Park, Sector 29, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1596495578065-6e0763fa1141?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-divya',
+    reporterName: 'Divya Sharma',
+    votesCount: 32,
+    voters: [],
+    assignedOfficerId: 'officer-anil',
+    assignedOfficerName: 'Anil Sharma',
+    createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), // 15 days ago
+    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    beforeImageUrl: 'https://images.unsplash.com/photo-1596495578065-6e0763fa1141?auto=format&fit=crop&w=600&q=80',
+    afterImageUrl: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=600&q=80',
+    resolutionNotes: 'Laid down brand new concrete interlocking tiles and leveled the ground beneath.',
+    priorityScore: 35,
+    credibilityScore: 91,
+    credibilityExplanation: 'Displaced paving verified against park records.',
+    escalationLevel: 0,
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-108',
+    title: 'Clogged Stormwater Drain causing Cyber City Flooding',
+    description: 'The primary drainage conduit is completely filled with construction debris, causing the service lane next to Cyber City block to submerge in 2 feet of water.',
+    category: 'Water & Sewage',
+    department: 'Water & Sewage Authority',
+    status: 'Submitted',
+    severity: 'High',
+    priority: 'High',
+    lat: 28.4982,
+    lng: 77.0882,
+    address: 'DLF Cyber City Phase III Main Road, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-karan',
+    reporterName: 'Karan Mehra',
+    votesCount: 340,
+    voters: [],
+    createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), // 8 days ago (Delayed, no officer)
+    updatedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 89,
+    credibilityScore: 93,
+    credibilityExplanation: 'Widespread waterlogging verified by comparative drone maps.',
+    escalationLevel: 1, // Escalated to Senior Officer
+    escalationDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-109',
+    title: 'Debris & Commercial Garbage Dump near Good Earth',
+    description: 'A local builder has dumped three truckloads of dry concrete rubble, wooden boards, and construction trash directly onto the open public footpath.',
+    category: 'Waste & Sanitation',
+    department: 'Sanitation Department',
+    status: 'Submitted',
+    severity: 'Medium',
+    priority: 'Medium',
+    lat: 28.4190,
+    lng: 77.0592,
+    address: 'Vikas Marg, Sector 50, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-ashna',
+    reporterName: 'Ashna Agarwal',
+    votesCount: 56,
+    voters: [],
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago (Ignored/Delayed: >4 days, no officer)
+    updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 58,
+    credibilityScore: 87,
+    credibilityExplanation: 'Construction waste heaps matched against building activity index.',
+    escalationLevel: 1,
+    escalationDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-110',
+    title: 'Open Deep Manhole without Cover, Palam Vihar',
+    description: 'A 6-foot deep main sewage manhole is left open without any concrete cover, warning sign, or barrier right in front of the local shopping lane.',
+    category: 'Water & Sewage',
+    department: 'Water & Sewage Authority',
+    status: 'Submitted',
+    severity: 'Critical',
+    priority: 'Critical',
+    lat: 28.4901,
+    lng: 77.0322,
+    address: 'Main Market Sector 2, Palam Vihar, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-amit',
+    reporterName: 'Amit Shah',
+    votesCount: 290,
+    voters: [],
+    createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(), // 12 days ago (Ignored/Delayed)
+    updatedAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 98,
+    credibilityScore: 99,
+    credibilityExplanation: 'Structural open hole verified with 99% accuracy. Immediate extreme safety hazard.',
+    escalationLevel: 3, // Escalated to District Commissioner
+    escalationDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-111',
+    title: 'Damaged Swings and Broken Play Equipment',
+    description: 'Three iron swings in Sector 14 park are completely rusted and broken, leaving sharp steel edges exposed. Multiple kids have cut themselves.',
+    category: 'Public Parks',
+    department: 'Parks & Recreation',
+    status: 'Under Review',
+    severity: 'Medium',
+    priority: 'Medium',
+    lat: 28.4735,
+    lng: 77.0495,
+    address: 'Sector 14 Central Park, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1596495578065-6e0763fa1141?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-divya',
+    reporterName: 'Divya Sharma',
+    votesCount: 64,
+    voters: [],
+    assignedOfficerId: 'officer-anil',
+    assignedOfficerName: 'Anil Sharma',
+    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago (Awaiting action)
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 55,
+    credibilityScore: 88,
+    credibilityExplanation: 'Rust and damage detected inside playground zone bounds.',
+    escalationLevel: 0,
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-112',
+    title: 'Fallen Overhead Power Cables at IFFCO Chowk Corner',
+    description: 'A massive bundle of internet and television coaxial wires has snapped, hanging dangerously low across the pedestrian zebra crossing.',
+    category: 'Streetlights & Electricity',
+    department: 'Traffic Engineering',
+    status: 'In Progress',
+    severity: 'High',
+    priority: 'High',
+    lat: 28.4705,
+    lng: 77.0715,
+    address: 'IFFCO Chowk Crossing, MG Road, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1544724569-5f546fd6f2b5?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-ashna',
+    reporterName: 'Ashna Agarwal',
+    votesCount: 112,
+    voters: [],
+    assignedOfficerId: 'officer-manoj',
+    assignedOfficerName: 'Manoj Sinha',
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 82,
+    credibilityScore: 92,
+    credibilityExplanation: 'Snapping fiber cable strands detected by linear vector mapping.',
+    escalationLevel: 0,
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-113',
+    title: 'Piles of Plastic Waste in DLF Phase 3 lanes',
+    description: 'Huge quantity of polythene packets, plastic food trays, and uncollected household trash is dumped in front of Sector U block lane.',
+    category: 'Waste & Sanitation',
+    department: 'Sanitation Department',
+    status: 'In Progress',
+    severity: 'Medium',
+    priority: 'Medium',
+    lat: 28.4912,
+    lng: 77.0945,
+    address: 'U-Block Lanes, DLF Phase 3, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-karan',
+    reporterName: 'Karan Mehra',
+    votesCount: 41,
+    voters: [],
+    assignedOfficerId: 'officer-karan',
+    assignedOfficerName: 'Karan Singh',
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 61,
+    credibilityScore: 86,
+    credibilityExplanation: 'Uncontrolled plastic heaps identified on residential asphalt.',
+    escalationLevel: 0,
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-114',
+    title: 'Damaged Asphalt Road with Substructure Exposure',
+    description: 'The primary crossing road in Sector 15 has completely chipped off, exposing raw stone ballast that punctures tyres daily.',
+    category: 'Potholes & Roads',
+    department: 'Public Works Dept',
+    status: 'Submitted',
+    severity: 'Medium',
+    priority: 'Medium',
+    lat: 28.4622,
+    lng: 77.0482,
+    address: 'Sector 15 Main Crossing Road, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-ashna',
+    reporterName: 'Ashna Agarwal',
+    votesCount: 38,
+    voters: [],
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days old, Action Pending
+    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 58,
+    credibilityScore: 90,
+    credibilityExplanation: 'Substructure aggregate exposed. Surface failure verified.',
+    escalationLevel: 0,
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-115',
+    title: 'Water Leakage from Air Release Valve, Golf Course Ext',
+    description: 'An air release valve on the main supply line has cracked, spraying water 10 feet high, wasting drinking water and creating a swamp.',
+    category: 'Water & Sewage',
+    department: 'Water & Sewage Authority',
+    status: 'In Progress',
+    severity: 'High',
+    priority: 'Medium',
+    lat: 28.4055,
+    lng: 77.0782,
+    address: 'Golf Course Extension Road, Sector 58, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-amit',
+    reporterName: 'Amit Shah',
+    votesCount: 104,
+    voters: [],
+    assignedOfficerId: 'officer-sanjay',
+    assignedOfficerName: 'Sanjay Dutt',
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 78,
+    credibilityScore: 91,
+    credibilityExplanation: 'Vapor plume and high-pressure jet stream verified on visual analysis.',
+    escalationLevel: 0,
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-116',
+    title: 'Dead Streetlights in Sector 82 Housing Zone',
+    description: 'Four consecutive streetlights on the lane outside DLF Primus are dead. Snatchers are hiding in dark shrubs. Unsafe for night commuting.',
+    category: 'Streetlights & Electricity',
+    department: 'Traffic Engineering',
+    status: 'Under Review',
+    severity: 'High',
+    priority: 'High',
+    lat: 28.3882,
+    lng: 76.9745,
+    address: 'Sector 82 Outer Access Road, near DLF Primus, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-karan',
+    reporterName: 'Karan Mehra',
+    votesCount: 88,
+    voters: [],
+    assignedOfficerId: 'officer-manoj',
+    assignedOfficerName: 'Manoj Sinha',
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago (In the Works since assigned)
+    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 79,
+    credibilityScore: 89,
+    credibilityExplanation: 'Low brightness lux levels confirmed near coordinate.',
+    escalationLevel: 0,
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-117',
+    title: 'Massive Waste Accumulation near Gurgaon Bus Stand',
+    description: 'Unchecked domestic and organic waste dumped in huge piles outside the city interstate bus stand. It has blocked half of the service lane.',
+    category: 'Waste & Sanitation',
+    department: 'Sanitation Department',
+    status: 'Submitted',
+    severity: 'High',
+    priority: 'High',
+    lat: 28.4715,
+    lng: 77.0125,
+    address: 'Old Gurgaon Bus Stand, Sector 12, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-ashna',
+    reporterName: 'Ashna Agarwal',
+    votesCount: 110,
+    voters: [],
+    createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), // 15 days ago (Ignored/Delayed)
+    updatedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 86,
+    credibilityScore: 95,
+    credibilityExplanation: 'Organic decomposing signatures found. Massive public sanitation risk.',
+    escalationLevel: 2,
+    escalationDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-118',
+    title: 'Clogged Sewer Pipeline near Vyapar Kendra Sector 43',
+    description: 'Sewer manhole is bubbling out septic waste onto the road right in front of the local pharmacy, causing unhygienic conditions.',
+    category: 'Water & Sewage',
+    department: 'Water & Sewage Authority',
+    status: 'Submitted',
+    severity: 'Medium',
+    priority: 'Medium',
+    lat: 28.4522,
+    lng: 77.0815,
+    address: 'Vyapar Kendra Market lane, Sector 43, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-divya',
+    reporterName: 'Divya Sharma',
+    votesCount: 52,
+    voters: [],
+    createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(), // 6 days ago (Ignored/Delayed)
+    updatedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 66,
+    credibilityScore: 88,
+    credibilityExplanation: 'Septic backflow verified on coordinate. Image timestamp matches.',
+    escalationLevel: 1,
+    escalationDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-119',
+    title: 'Major Cracks and Potholes on Golf Course Road',
+    description: 'Several massive deep cracks have surfaced under the rapid metro line near Sector 53. Speeds have to drop to 10km/h, causing tailbacks.',
+    category: 'Potholes & Roads',
+    department: 'Public Works Dept',
+    status: 'In Progress',
+    severity: 'High',
+    priority: 'High',
+    lat: 28.4385,
+    lng: 77.0965,
+    address: 'Main Golf Course Road, Sector 53 Metro Station, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-amit',
+    reporterName: 'Amit Shah',
+    votesCount: 121,
+    voters: [],
+    assignedOfficerId: 'officer-rajesh',
+    assignedOfficerName: 'Rajesh Kumar',
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 84,
+    credibilityScore: 93,
+    credibilityExplanation: 'Asphalt linear distress fracture validated on texture profile.',
+    escalationLevel: 0,
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-120',
+    title: 'Dead Streetlights in Sector 47 Netaji Subhash Marg',
+    description: 'A 500-meter dark pocket on the road. Completely dead streetlights from central dividers. Extremely hazardous for cars turning.',
+    category: 'Streetlights & Electricity',
+    department: 'Traffic Engineering',
+    status: 'Submitted',
+    severity: 'Medium',
+    priority: 'Medium',
+    lat: 28.4215,
+    lng: 77.0512,
+    address: 'Netaji Subhash Marg, Sector 47, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-ashna',
+    reporterName: 'Ashna Agarwal',
+    votesCount: 34,
+    voters: [],
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago, Action Pending
+    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 52,
+    credibilityScore: 85,
+    credibilityExplanation: 'Zero ambient street-lux calculated from photo.',
+    escalationLevel: 0,
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-121',
+    title: 'Waterlogged Pothole Zone on Sohna Road Corner',
+    description: 'Heavy waterlogging has fully hidden three cavernous potholes at the corner near Subhash Chowk. Three vehicles suffered tyre damage yesterday.',
+    category: 'Potholes & Roads',
+    department: 'Public Works Dept',
+    status: 'Submitted',
+    severity: 'High',
+    priority: 'High',
+    lat: 28.4111,
+    lng: 77.0425,
+    address: 'Sohna Road, near Subhash Chowk, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1515162305285-0293e4767cc2?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-karan',
+    reporterName: 'Karan Mehra',
+    votesCount: 198,
+    voters: [],
+    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 days ago (Ignored/Delayed)
+    updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 91,
+    credibilityScore: 97,
+    credibilityExplanation: 'Water-filled road cavity validated by texture profiling.',
+    escalationLevel: 2,
+    escalationDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-122',
+    title: 'Severe Drinking Water Leakage in Sector 15-II',
+    description: 'A damaged supply valve is bubbling clean drinking water into the dirt service road, wasting large quantities and creating heavy sludge.',
+    category: 'Water & Sewage',
+    department: 'Water & Sewage Authority',
+    status: 'Resolved',
+    severity: 'Medium',
+    priority: 'Medium',
+    lat: 28.4611,
+    lng: 77.0505,
+    address: 'Sector 15 Part II Main Entrance road, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-divya',
+    reporterName: 'Divya Sharma',
+    votesCount: 43,
+    voters: [],
+    assignedOfficerId: 'officer-sanjay',
+    assignedOfficerName: 'Sanjay Dutt',
+    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    beforeImageUrl: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=600&q=80',
+    afterImageUrl: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=600&q=80',
+    resolutionNotes: 'Secured the primary high pressure seal and replaced the corroded steel flange bolts.',
+    priorityScore: 61,
+    credibilityScore: 91,
+    credibilityExplanation: 'Pressure leak verified. Seal repair successfully analyzed.',
+    escalationLevel: 0,
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-123',
+    title: 'Broken Park Swings and Benches, Sector 31 HUDA Park',
+    description: 'The perimeter benches are completely shattered, and two swings are hanging loosely by dangerous sharp steel chains. Very risky for children.',
+    category: 'Public Parks',
+    department: 'Parks & Recreation',
+    status: 'Submitted',
+    severity: 'Low',
+    priority: 'Low',
+    lat: 28.4551,
+    lng: 77.0545,
+    address: 'HUDA Park, Sector 31, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1596495578065-6e0763fa1141?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-amit',
+    reporterName: 'Amit Shah',
+    votesCount: 22,
+    voters: [],
+    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago, Action Pending
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 31,
+    credibilityScore: 84,
+    credibilityExplanation: 'Bench cracks verified by visual bounding box check.',
+    escalationLevel: 0,
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-124',
+    title: 'Clogged Sewage Pipeline near Palam Vihar Sector 1',
+    description: 'Sewer backwater is flowing into residential lanes because of illegal heavy plastic blocking the main stormwater pipe.',
+    category: 'Water & Sewage',
+    department: 'Water & Sewage Authority',
+    status: 'Submitted',
+    severity: 'Medium',
+    priority: 'Medium',
+    lat: 28.4952,
+    lng: 77.0345,
+    address: 'Sector 1 Pocket C Road, Palam Vihar, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-divya',
+    reporterName: 'Divya Sharma',
+    votesCount: 44,
+    voters: [],
+    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago, Action Pending
+    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 62,
+    credibilityScore: 88,
+    credibilityExplanation: 'Liquid surface level verified with reference elevation marks.',
+    escalationLevel: 0,
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-125',
+    title: 'Industrial Chemical Slurry Dump in Sector 10A Area',
+    description: 'Heavy toxic sludge containing dark oily residue has been illegally discharged on the road boundary, killing local roadside green patches.',
+    category: 'Waste & Sanitation',
+    department: 'Sanitation Department',
+    status: 'Submitted',
+    severity: 'Critical',
+    priority: 'High',
+    lat: 28.4411,
+    lng: 77.0101,
+    address: 'Industrial Area Road, Sector 10A, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1611284446314-60a58ac0deb9?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-karan',
+    reporterName: 'Karan Mehra',
+    votesCount: 165,
+    voters: [],
+    createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 days ago (Ignored/Delayed)
+    updatedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 87,
     credibilityScore: 94,
-    credibilityExplanation: 'Chemical residue markers detected in the image using structural contrast analytics.',
+    credibilityExplanation: 'AI fluid viscosity detection indicates high toxic density markers.',
+    escalationLevel: 2,
+    escalationDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    isMerged: false,
+    affectedCount: 1
+  },
+  {
+    id: 'gurgaon-126',
+    title: 'Severe Street Submersion on Golf Course Extension',
+    description: 'Major storm drains are completely choked with construction mortar. The entire cross junction has submerged in stagnant sewer and rainwater.',
+    category: 'Water & Sewage',
+    department: 'Water & Sewage Authority',
+    status: 'In Progress',
+    severity: 'Critical',
+    priority: 'Critical',
+    lat: 28.4022,
+    lng: 77.0752,
+    address: 'Golf Course Extension Road Cross Road, Gurgaon',
+    imageUrl: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?auto=format&fit=crop&w=600&q=80',
+    reporterId: 'reporter-ashna',
+    reporterName: 'Ashna Agarwal',
+    votesCount: 380,
+    voters: [],
+    assignedOfficerId: 'officer-sanjay',
+    assignedOfficerName: 'Sanjay Dutt',
+    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    priorityScore: 96,
+    credibilityScore: 98,
+    credibilityExplanation: 'Submerged asphalt visual matching indicates water depth exceeds 18 inches.',
     escalationLevel: 0,
     isMerged: false,
     affectedCount: 1
@@ -179,88 +754,72 @@ const SEED_ISSUES: Issue[] = [
 ];
 
 const SEED_COMMENTS: Record<string, Comment[]> = {
-  'issue-101': [
+  'gurgaon-101': [
     {
       id: 'c-1',
-      issueId: 'issue-101',
-      userId: 'reporter-1',
+      issueId: 'gurgaon-101',
+      userId: 'reporter-ashna',
       userName: 'Ashna Agarwal',
       userRole: 'Citizen',
-      text: 'This is getting worse daily. It is literally pouring into residential yards. Pls fix ASAP!',
-      createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+      text: 'This is getting worse daily. The crater potholes are practically submerging under rainwater when it pours.',
+      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
     },
     {
       id: 'c-2',
-      issueId: 'issue-101',
-      userId: 'officer-1',
-      userName: 'Sanjay Dutt',
+      issueId: 'gurgaon-101',
+      userId: 'officer-rajesh',
+      userName: 'Rajesh Kumar',
       userRole: 'Officer',
-      text: 'Our municipal sewer teams have deployed excavators to clear blockages in the primary outlet canal. We appreciate your patience.',
-      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+      text: 'We have registered this. Repairs will initiate as soon as the rain lets up.',
+      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
     }
   ],
-  'issue-102': [
+  'gurgaon-102': [
     {
       id: 'c-3',
-      issueId: 'issue-102',
-      userId: 'user-2',
-      userName: 'Pranav Roy',
+      issueId: 'gurgaon-102',
+      userId: 'reporter-amit',
+      userName: 'Amit Shah',
       userRole: 'Citizen',
-      text: 'My car tire burst right here last night. There is literally no safety board or barricading around Rajesh Kumars jurisdiction!',
-      createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
+      text: 'The sewage water has started flowing into our building basements. Please dispatch sewer pumps!',
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
     }
   ]
 };
 
 const SEED_LOGS: Record<string, ActivityLog[]> = {
-  'issue-101': [
+  'gurgaon-101': [
     {
       id: 'log-1',
-      issueId: 'issue-101',
-      userId: 'reporter-1',
+      issueId: 'gurgaon-101',
+      userId: 'reporter-ashna',
       userName: 'Ashna Agarwal',
-      action: 'Reported issue and initiated AI triage.',
-      createdAt: new Date(Date.now() - 32 * 24 * 60 * 60 * 1000).toISOString()
+      action: 'Reported issue and completed AI verification.',
+      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
     },
     {
       id: 'log-2',
-      issueId: 'issue-101',
-      userId: 'ai-engine',
-      userName: 'Gemini AI',
-      action: 'AI classified as Water & Sewage, calculated Priority Score of 97 and merged 500 duplicate tickets.',
-      createdAt: new Date(Date.now() - 32 * 24 * 60 * 60 * 1000).toISOString()
-    },
-    {
-      id: 'log-3',
-      issueId: 'issue-101',
-      userId: 'system',
-      userName: 'Escalation Agent',
-      action: 'Escalated to Day 15 Senior Officer (Sanjay Dutt Assigned).',
-      createdAt: new Date(Date.now() - 17 * 24 * 60 * 60 * 1000).toISOString()
-    },
-    {
-      id: 'log-4',
-      issueId: 'issue-101',
-      userId: 'system',
-      userName: 'Escalation Agent',
-      action: 'Escalated to Day 30 Department Head (Municipal Commissioner Warned).',
-      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+      issueId: 'gurgaon-101',
+      userId: 'officer-rajesh',
+      userName: 'Rajesh Kumar',
+      action: 'Assigned roads division team and approved materials list.',
+      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
     }
   ]
 };
 
 const SEED_VERIFICATION_REQUESTS: Record<string, VerificationRequest[]> = {
-  'issue-103': [
+  'gurgaon-103': [
     {
       id: 'vr-1',
-      issueId: 'issue-103',
-      officerId: 'officer-3',
+      issueId: 'gurgaon-103',
+      officerId: 'officer-manoj',
       officerName: 'Manoj Sinha',
       afterImageUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&w=600&q=80',
-      notes: 'All streetlights are now fully functional. Gemini AI vision analyzed the proof image with 96% repair confidence.',
-      votesVerified: 1,
+      notes: 'All streetlights are now fully functional. Replaced bulbs with LED nodes.',
+      votesVerified: 2,
       votesRejected: 0,
-      voters: { 'user-1': true },
+      voters: { 'reporter-ashna': true, 'reporter-amit': true },
       createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
       status: 'Pending'
     }
@@ -405,6 +964,99 @@ export const dbCreateIssue = async (issue: Omit<Issue, 'id' | 'createdAt' | 'upd
   }
 };
 
+export const dbSeedFirestoreData = async (): Promise<Issue[]> => {
+  if (!db) {
+    console.warn('[Community Hero] Firestore is not configured or initialized.');
+    return SEED_ISSUES;
+  }
+  try {
+    console.log('[Community Hero] Seeding Firestore with realistic Gurgaon dataset...');
+    const issuesCollection = collection(db, 'issues');
+    
+    // Seed departments to ensure perfect alignment!
+    const depts = [
+      { id: 'roads', name: 'Public Works Dept', officerCount: 3, resolvedCount: 14, activeCount: 6 },
+      { id: 'sewage', name: 'Water & Sewage Authority', officerCount: 4, resolvedCount: 18, activeCount: 8 },
+      { id: 'electricity', name: 'Traffic Engineering', officerCount: 2, resolvedCount: 9, activeCount: 4 },
+      { id: 'sanitation', name: 'Sanitation Department', officerCount: 3, resolvedCount: 11, activeCount: 5 },
+      { id: 'parks', name: 'Parks & Recreation', officerCount: 2, resolvedCount: 7, activeCount: 2 }
+    ];
+    
+    for (const dept of depts) {
+      await setDoc(doc(db, 'departments', dept.id), dept);
+    }
+    
+    // Seed users (profiles)
+    const seedUsers = [
+      { uid: 'reporter-ashna', name: 'Ashna Agarwal', email: 'ashna@gurgaon.gov.in', role: 'Citizen', reputation: 350, badges: ['Civic Champion', 'First Responder'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      { uid: 'reporter-amit', name: 'Amit Shah', email: 'amit@gurgaon.gov.in', role: 'Citizen', reputation: 180, badges: ['Neighborhood Watch'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      { uid: 'reporter-divya', name: 'Divya Sharma', email: 'divya@gurgaon.gov.in', role: 'Citizen', reputation: 210, badges: ['Green Guard'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      { uid: 'reporter-karan', name: 'Karan Mehra', email: 'karan@gurgaon.gov.in', role: 'Citizen', reputation: 95, badges: ['Active Citizen'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      
+      { uid: 'officer-rajesh', name: 'Rajesh Kumar', email: 'rajesh@gurgaon.gov.in', role: 'Officer', departmentId: 'roads', reputation: 120, badges: ['Speedy Fixer'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      { uid: 'officer-sanjay', name: 'Sanjay Dutt', email: 'sanjay@gurgaon.gov.in', role: 'Officer', departmentId: 'sewage', reputation: 250, badges: ['Plumbing Master', 'Hero of Gurgaon'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      { uid: 'officer-manoj', name: 'Manoj Sinha', email: 'manoj@gurgaon.gov.in', role: 'Officer', departmentId: 'electricity', reputation: 80, badges: ['Safety First'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      { uid: 'officer-karan', name: 'Karan Singh', email: 'karansingh@gurgaon.gov.in', role: 'Officer', departmentId: 'sanitation', reputation: 140, badges: ['Clean City Ambassador'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      { uid: 'officer-anil', name: 'Anil Sharma', email: 'anil@gurgaon.gov.in', role: 'Officer', departmentId: 'parks', reputation: 90, badges: ['Green Thumb'], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+    ];
+    
+    for (const u of seedUsers) {
+      await setDoc(doc(db, 'users', u.uid), u);
+    }
+
+    // Seed issues
+    for (const issue of SEED_ISSUES) {
+      const issueDocRef = doc(issuesCollection, issue.id);
+      await setDoc(issueDocRef, issue);
+      
+      // Seed activity logs and comments/verification requests if necessary
+      if (issue.id === 'gurgaon-101') {
+        const logRef = doc(db, `issues/${issue.id}/activityLogs`, 'log-1');
+        await setDoc(logRef, {
+          id: 'log-1',
+          issueId: issue.id,
+          userId: 'reporter-ashna',
+          userName: 'Ashna Agarwal',
+          action: 'Reported issue and completed AI verification.',
+          createdAt: issue.createdAt
+        });
+        const logRef2 = doc(db, `issues/${issue.id}/activityLogs`, 'log-2');
+        await setDoc(logRef2, {
+          id: 'log-2',
+          issueId: issue.id,
+          userId: 'officer-rajesh',
+          userName: 'Rajesh Kumar',
+          action: 'Assigned roads division team and approved materials list.',
+          createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+        });
+      }
+      
+      if (issue.id === 'gurgaon-103') {
+        const vreqRef = doc(db, `issues/${issue.id}/verificationRequests`, 'vr-1');
+        await setDoc(vreqRef, {
+          id: 'vr-1',
+          issueId: issue.id,
+          officerId: 'officer-manoj',
+          officerName: 'Manoj Sinha',
+          afterImageUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&w=600&q=80',
+          notes: 'All streetlights are now fully functional. Replaced bulbs with LED nodes.',
+          votesVerified: 2,
+          votesRejected: 0,
+          voters: { 'reporter-ashna': true, 'reporter-amit': true },
+          createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+          status: 'Pending'
+        });
+      }
+    }
+    
+    console.log('[Community Hero] Seeding complete! All 26 complaints successfully written to Firestore.');
+    return SEED_ISSUES;
+  } catch (err) {
+    console.error('[Community Hero] Error seeding Firestore:', err);
+    return SEED_ISSUES;
+  }
+};
+
 export const dbGetIssues = async (): Promise<Issue[]> => {
   if (isLocalMode()) {
     return getLocalIssues();
@@ -417,7 +1069,12 @@ export const dbGetIssues = async (): Promise<Issue[]> => {
     querySnapshot.forEach((docSnap) => {
       list.push(docSnap.data() as Issue);
     });
-    return list.length > 0 ? list : getLocalIssues(); // fallback if Firestore is empty
+    
+    if (list.length === 0) {
+      const seeded = await dbSeedFirestoreData();
+      return seeded;
+    }
+    return list;
   } catch (err) {
     console.warn('Firestore getIssues failed, falling back to local seed data:', err);
     return getLocalIssues();

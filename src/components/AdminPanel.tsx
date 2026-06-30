@@ -12,7 +12,7 @@ import {
   CheckCircle,
   ThumbsUp
 } from 'lucide-react';
-import { dbGetIssues } from '../services/dbService';
+import { dbGetIssues, dbSeedFirestoreData } from '../services/dbService';
 import { Issue } from '../types';
 import { getIssueActionClassification, summarizeActionClassifications } from '../services/classificationService';
 
@@ -29,6 +29,27 @@ interface DepartmentMetric {
 export const AdminPanel: React.FC = () => {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [seeding, setSeeding] = useState(false);
+  const [seedMessage, setSeedMessage] = useState('');
+
+  const handleReSeed = async () => {
+    if (!window.confirm("Are you sure you want to force re-seed the Firestore database? This will overwrite the live dataset with 26 realistic civic complaints.")) {
+      return;
+    }
+    setSeeding(true);
+    setSeedMessage('Initializing database reset...');
+    try {
+      const freshIssues = await dbSeedFirestoreData();
+      setIssues(freshIssues);
+      setSeedMessage('Database successfully seeded with 26 complaints!');
+      setTimeout(() => setSeedMessage(''), 4000);
+    } catch (err) {
+      console.error(err);
+      setSeedMessage('Seeding failed. See logs.');
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   useEffect(() => {
     const fetchIssues = async () => {
@@ -111,6 +132,38 @@ export const AdminPanel: React.FC = () => {
 
   return (
     <div className="space-y-6 text-left" id="admin-panel-container">
+      {/* Header with Title and Reset Database Action */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 text-white p-4 sm:p-5 rounded-2xl border border-slate-800 shadow-xl" id="admin-command-header">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="bg-purple-500 text-[10px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider">Super Admin</span>
+            <span className="text-slate-400 text-xs font-semibold">Gurgaon Municipal Corp</span>
+          </div>
+          <h2 className="text-lg sm:text-xl md:text-2xl font-black tracking-tight text-white">
+            Civic Command Center
+          </h2>
+          <p className="text-xs text-slate-300 leading-normal max-w-xl">
+            Real-time analytics, SLA delay audits, automated escalation tracking, and direct citizen verified resolution compliance metrics.
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-2 shrink-0 w-full sm:w-auto">
+          <button
+            onClick={handleReSeed}
+            disabled={seeding}
+            className={`w-full sm:w-auto px-4 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-900 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-md active:scale-[0.98] transition flex items-center justify-center gap-2 ${seeding ? 'animate-pulse' : ''}`}
+            id="force-reseed-btn"
+          >
+            <Sparkles className="w-4 h-4 shrink-0" />
+            {seeding ? 'Seeding Firestore...' : 'Force Reset & Seed Data'}
+          </button>
+          {seedMessage && (
+            <span className="text-[10px] text-purple-300 font-bold bg-purple-950/50 border border-purple-800 px-2 py-1 rounded-lg animate-fade-in block text-center w-full sm:w-auto" id="seed-status-message">
+              {seedMessage}
+            </span>
+          )}
+        </div>
+      </div>
+
       {/* Overview stats cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="admin-summary-grid">
         <div className="bg-white border border-slate-100 rounded-2xl p-3 sm:p-4 flex items-center gap-3 sm:gap-4">

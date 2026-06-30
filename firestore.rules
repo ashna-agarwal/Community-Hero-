@@ -1,0 +1,130 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default-deny catch-all safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation blueprints
+    function isValidUser(data) {
+      return data.uid is string 
+        && data.name is string 
+        && data.email is string 
+        && data.role is string
+        && data.reputation is int
+        && data.createdAt is string
+        && data.updatedAt is string;
+    }
+
+    function isValidIssue(data) {
+      return data.id is string
+        && data.title is string
+        && data.description is string
+        && data.category is string
+        && data.department is string
+        && data.status is string
+        && data.severity is string
+        && data.priority is string
+        && data.lat is number
+        && data.lng is number
+        && data.address is string
+        && data.reporterId is string
+        && data.reporterName is string
+        && data.votesCount is int
+        && data.createdAt is string
+        && data.updatedAt is string;
+    }
+
+    function isValidComment(data) {
+      return data.id is string
+        && data.issueId is string
+        && data.userId is string
+        && data.userName is string
+        && data.text is string
+        && data.createdAt is string;
+    }
+
+    function isValidNotification(data) {
+      return data.id is string
+        && data.userId is string
+        && data.title is string
+        && data.message is string
+        && data.type is string
+        && data.read is bool
+        && data.createdAt is string;
+    }
+
+    // Match rules for collections
+    match /users/{userId} {
+      // Allow read/write for own user, or if they are seed data profiles
+      allow read, write: if isSignedIn() && (
+        request.auth.uid == userId || 
+        userId.startsWith('reporter-') || 
+        userId.startsWith('officer-')
+      );
+    }
+
+    match /departments/{departmentId} {
+      // Anyone signed in can read departments or write them (seeding)
+      allow read, write: if isSignedIn();
+    }
+
+    match /issues/{issueId} {
+      // Anyone signed in can read and create issues
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidIssue(incoming());
+      
+      // Updates can be status change, voting, pledges, etc.
+      allow update: if isSignedIn();
+      allow delete: if false;
+
+      // Nested comments subcollection
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn() && isValidComment(incoming());
+        allow update, delete: if isSignedIn() && (request.auth.uid == resource.data.userId);
+      }
+
+      // Nested activityLogs subcollection
+      match /activityLogs/{logId} {
+        allow read: if isSignedIn();
+        allow create, write: if isSignedIn();
+      }
+
+      // Nested verificationRequests subcollection
+      match /verificationRequests/{requestId} {
+        allow read: if isSignedIn();
+        allow create, write: if isSignedIn();
+      }
+    }
+
+    match /notifications/{notificationId} {
+      // Only the recipient can read/write their own notifications, or system can create them
+      allow create: if isSignedIn();
+      allow read, update, delete: if isSignedIn() && (resource.data.userId == request.auth.uid);
+    }
+  }
+}

@@ -11,7 +11,7 @@ import {
   getRedirectResult
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+import { auth, db, handleFirestoreError, OperationType } from '../firebase';
 import { UserProfile, UserRole } from '../types';
 
 interface AuthContextType {
@@ -56,7 +56,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     try {
       const userRef = doc(db, 'users', uid);
-      const userSnap = await getDoc(userRef);
+      let userSnap;
+      try {
+        userSnap = await getDoc(userRef);
+      } catch (err: any) {
+        if (err?.code === 'permission-denied' || String(err).includes('permission')) {
+          handleFirestoreError(err, OperationType.GET, `users/${uid}`);
+        }
+        throw err;
+      }
 
       if (userSnap.exists()) {
         const loadedProfile = userSnap.data() as UserProfile;
@@ -76,7 +84,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
-        await setDoc(userRef, newProfile);
+        try {
+          await setDoc(userRef, newProfile);
+        } catch (err: any) {
+          if (err?.code === 'permission-denied' || String(err).includes('permission')) {
+            handleFirestoreError(err, OperationType.WRITE, `users/${uid}`);
+          }
+          throw err;
+        }
         setProfile(newProfile);
         try {
           localStorage.setItem('ch_cached_profile', JSON.stringify(newProfile));
@@ -270,7 +285,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const userRef = doc(db, 'users', profile.uid);
       await updateDoc(userRef, { reputation: newRep, updatedAt: new Date().toISOString() });
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.code === 'permission-denied' || String(err).includes('permission')) {
+        handleFirestoreError(err, OperationType.WRITE, `users/${profile.uid}`);
+      }
       console.error('Failed to update reputation in Firestore:', err);
     }
   };
@@ -288,7 +306,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const userRef = doc(db, 'users', profile.uid);
       await updateDoc(userRef, { badges: newBadges, updatedAt: new Date().toISOString() });
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.code === 'permission-denied' || String(err).includes('permission')) {
+        handleFirestoreError(err, OperationType.WRITE, `users/${profile.uid}`);
+      }
       console.error('Failed to add badge in Firestore:', err);
     }
   };
@@ -307,7 +328,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const userRef = doc(db, 'users', profile.uid);
       await updateDoc(userRef, { role, updatedAt: new Date().toISOString() });
-    } catch (err) {
+    } catch (err: any) {
+      if (err?.code === 'permission-denied' || String(err).includes('permission')) {
+        handleFirestoreError(err, OperationType.WRITE, `users/${profile.uid}`);
+      }
       console.warn('Failed to save role to Firestore, using local runtime override:', err);
     }
   };

@@ -67,6 +67,8 @@ export interface Issue {
   isMerged?: boolean;                // Flag for duplicate aggregator
   mergedWithId?: string;             // Parent issue ID if merged
   affectedCount?: number;            // Counter representing original duplicates + supporters
+  actionClassification?: 'In the Works' | 'Action Pending' | 'Ignored / Delayed';
+  progressPercent?: number;
   
   // Gaps Solved Differentiating Features
   materialsEstimate?: {

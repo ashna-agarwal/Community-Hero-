@@ -28,7 +28,7 @@ const handleDBError = (action: string, error: any) => {
 };
 
 /**
- * MOCK DATA SEED GENERATOR
+ * FIXED DEMO DATASET — static, do not regenerate
  * Pre-populates the local storage with real-world scenarios straight from the hackathon brief.
  */
 const SEED_ISSUES: Issue[] = [
@@ -51,14 +51,16 @@ const SEED_ISSUES: Issue[] = [
     voters: ['reporter-amit', 'reporter-divya'],
     assignedOfficerId: 'officer-rajesh',
     assignedOfficerName: 'Rajesh Kumar',
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-26T10:00:00Z',
+    updatedAt: '2026-06-28T10:00:00Z',
     priorityScore: 92,
     credibilityScore: 98,
     credibilityExplanation: 'Image analysis shows severe pavement erosion and deep structure damage. Location GPS matches.',
     escalationLevel: 0,
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'In the Works',
+    progressPercent: 60
   },
   {
     id: 'gurgaon-102',
@@ -79,14 +81,16 @@ const SEED_ISSUES: Issue[] = [
     voters: ['reporter-ashna'],
     assignedOfficerId: 'officer-sanjay',
     assignedOfficerName: 'Sanjay Dutt',
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-27T10:00:00Z',
+    updatedAt: '2026-06-28T10:00:00Z',
     priorityScore: 84,
     credibilityScore: 94,
     credibilityExplanation: 'Water contamination detected by spectral highlights. Stench and flooding hazard verified.',
     escalationLevel: 0,
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'In the Works',
+    progressPercent: 60
   },
   {
     id: 'gurgaon-103',
@@ -107,8 +111,8 @@ const SEED_ISSUES: Issue[] = [
     voters: ['reporter-ashna', 'reporter-amit'],
     assignedOfficerId: 'officer-manoj',
     assignedOfficerName: 'Manoj Sinha',
-    createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(), // 25 days ago
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-04T10:00:00Z',
+    updatedAt: '2026-06-28T10:00:00Z',
     beforeImageUrl: 'https://images.unsplash.com/photo-1509114397022-ed747cca3f65?auto=format&fit=crop&w=600&q=80',
     afterImageUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&w=600&q=80',
     resolutionNotes: 'Replaced dead fluorescent bulbs with energy-efficient LED assemblies and checked supply line.',
@@ -117,7 +121,9 @@ const SEED_ISSUES: Issue[] = [
     credibilityExplanation: 'Night exposure confirms streetlight failure. AI vision validated replacement details with high accuracy.',
     escalationLevel: 0,
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'In the Works',
+    progressPercent: 85
   },
   {
     id: 'gurgaon-104',
@@ -136,14 +142,16 @@ const SEED_ISSUES: Issue[] = [
     reporterName: 'Karan Mehra',
     votesCount: 210,
     voters: ['reporter-ashna'],
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-28T10:00:00Z',
+    updatedAt: '2026-06-28T10:00:00Z',
     priorityScore: 88,
     credibilityScore: 96,
     credibilityExplanation: 'AI chemical slurry inspection indicates critical hazard. Corrosive surface elements detected.',
     escalationLevel: 0,
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'Action Pending',
+    progressPercent: 20
   },
   {
     id: 'gurgaon-105',
@@ -164,14 +172,16 @@ const SEED_ISSUES: Issue[] = [
     voters: [],
     assignedOfficerId: 'officer-sanjay',
     assignedOfficerName: 'Sanjay Dutt',
-    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days ago
-    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-25T10:00:00Z',
+    updatedAt: '2026-06-27T10:00:00Z',
     priorityScore: 65,
     credibilityScore: 90,
     credibilityExplanation: 'Water spraying from valve joint. Leak rate analyzed from frame movement.',
     escalationLevel: 0,
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'In the Works',
+    progressPercent: 60
   },
   {
     id: 'gurgaon-106',
@@ -190,15 +200,17 @@ const SEED_ISSUES: Issue[] = [
     reporterName: 'Amit Shah',
     votesCount: 189,
     voters: [],
-    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 days ago (Escalated, older than SLA, no officer)
-    updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-19T10:00:00Z',
+    updatedAt: '2026-06-19T10:00:00Z',
     priorityScore: 95,
     credibilityScore: 98,
     credibilityExplanation: 'Naked wiring verified using visual node network. Serious electrocution risk confirmed.',
     escalationLevel: 2, // Escalated to Department Head due to 10 days delay
-    escalationDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    escalationDate: '2026-06-26T10:00:00Z',
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'Ignored / Delayed',
+    progressPercent: 10
   },
   {
     id: 'gurgaon-107',
@@ -219,8 +231,8 @@ const SEED_ISSUES: Issue[] = [
     voters: [],
     assignedOfficerId: 'officer-anil',
     assignedOfficerName: 'Anil Sharma',
-    createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), // 15 days ago
-    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-14T10:00:00Z',
+    updatedAt: '2026-06-27T10:00:00Z',
     beforeImageUrl: 'https://images.unsplash.com/photo-1596495578065-6e0763fa1141?auto=format&fit=crop&w=600&q=80',
     afterImageUrl: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=600&q=80',
     resolutionNotes: 'Laid down brand new concrete interlocking tiles and leveled the ground beneath.',
@@ -229,7 +241,9 @@ const SEED_ISSUES: Issue[] = [
     credibilityExplanation: 'Displaced paving verified against park records.',
     escalationLevel: 0,
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'In the Works',
+    progressPercent: 80
   },
   {
     id: 'gurgaon-108',
@@ -248,15 +262,17 @@ const SEED_ISSUES: Issue[] = [
     reporterName: 'Karan Mehra',
     votesCount: 340,
     voters: [],
-    createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(), // 8 days ago (Delayed, no officer)
-    updatedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-21T10:00:00Z',
+    updatedAt: '2026-06-21T10:00:00Z',
     priorityScore: 89,
     credibilityScore: 93,
     credibilityExplanation: 'Widespread waterlogging verified by comparative drone maps.',
     escalationLevel: 1, // Escalated to Senior Officer
-    escalationDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    escalationDate: '2026-06-28T10:00:00Z',
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'Ignored / Delayed',
+    progressPercent: 10
   },
   {
     id: 'gurgaon-109',
@@ -275,15 +291,17 @@ const SEED_ISSUES: Issue[] = [
     reporterName: 'Ashna Agarwal',
     votesCount: 56,
     voters: [],
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago (Ignored/Delayed: >4 days, no officer)
-    updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-24T10:00:00Z',
+    updatedAt: '2026-06-24T10:00:00Z',
     priorityScore: 58,
     credibilityScore: 87,
     credibilityExplanation: 'Construction waste heaps matched against building activity index.',
     escalationLevel: 1,
-    escalationDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    escalationDate: '2026-06-28T10:00:00Z',
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'Ignored / Delayed',
+    progressPercent: 10
   },
   {
     id: 'gurgaon-110',
@@ -302,15 +320,17 @@ const SEED_ISSUES: Issue[] = [
     reporterName: 'Amit Shah',
     votesCount: 290,
     voters: [],
-    createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(), // 12 days ago (Ignored/Delayed)
-    updatedAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-17T10:00:00Z',
+    updatedAt: '2026-06-17T10:00:00Z',
     priorityScore: 98,
     credibilityScore: 99,
     credibilityExplanation: 'Structural open hole verified with 99% accuracy. Immediate extreme safety hazard.',
     escalationLevel: 3, // Escalated to District Commissioner
-    escalationDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    escalationDate: '2026-06-24T10:00:00Z',
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'Ignored / Delayed',
+    progressPercent: 10
   },
   {
     id: 'gurgaon-111',
@@ -331,14 +351,16 @@ const SEED_ISSUES: Issue[] = [
     voters: [],
     assignedOfficerId: 'officer-anil',
     assignedOfficerName: 'Anil Sharma',
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago (Awaiting action)
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-28T10:00:00Z',
+    updatedAt: '2026-06-28T10:00:00Z',
     priorityScore: 55,
     credibilityScore: 88,
     credibilityExplanation: 'Rust and damage detected inside playground zone bounds.',
     escalationLevel: 0,
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'In the Works',
+    progressPercent: 30
   },
   {
     id: 'gurgaon-112',
@@ -359,14 +381,16 @@ const SEED_ISSUES: Issue[] = [
     voters: [],
     assignedOfficerId: 'officer-manoj',
     assignedOfficerName: 'Manoj Sinha',
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-26T10:00:00Z',
+    updatedAt: '2026-06-28T10:00:00Z',
     priorityScore: 82,
     credibilityScore: 92,
     credibilityExplanation: 'Snapping fiber cable strands detected by linear vector mapping.',
     escalationLevel: 0,
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'In the Works',
+    progressPercent: 60
   },
   {
     id: 'gurgaon-113',
@@ -387,14 +411,16 @@ const SEED_ISSUES: Issue[] = [
     voters: [],
     assignedOfficerId: 'officer-karan',
     assignedOfficerName: 'Karan Singh',
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-27T10:00:00Z',
+    updatedAt: '2026-06-28T10:00:00Z',
     priorityScore: 61,
     credibilityScore: 86,
     credibilityExplanation: 'Uncontrolled plastic heaps identified on residential asphalt.',
     escalationLevel: 0,
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'In the Works',
+    progressPercent: 60
   },
   {
     id: 'gurgaon-114',
@@ -413,14 +439,16 @@ const SEED_ISSUES: Issue[] = [
     reporterName: 'Ashna Agarwal',
     votesCount: 38,
     voters: [],
-    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days old, Action Pending
-    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-27T10:00:00Z',
+    updatedAt: '2026-06-27T10:00:00Z',
     priorityScore: 58,
     credibilityScore: 90,
     credibilityExplanation: 'Substructure aggregate exposed. Surface failure verified.',
     escalationLevel: 0,
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'Action Pending',
+    progressPercent: 20
   },
   {
     id: 'gurgaon-115',
@@ -441,14 +469,16 @@ const SEED_ISSUES: Issue[] = [
     voters: [],
     assignedOfficerId: 'officer-sanjay',
     assignedOfficerName: 'Sanjay Dutt',
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-26T10:00:00Z',
+    updatedAt: '2026-06-28T10:00:00Z',
     priorityScore: 78,
     credibilityScore: 91,
     credibilityExplanation: 'Vapor plume and high-pressure jet stream verified on visual analysis.',
     escalationLevel: 0,
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'In the Works',
+    progressPercent: 60
   },
   {
     id: 'gurgaon-116',
@@ -469,14 +499,16 @@ const SEED_ISSUES: Issue[] = [
     voters: [],
     assignedOfficerId: 'officer-manoj',
     assignedOfficerName: 'Manoj Sinha',
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago (In the Works since assigned)
-    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-26T10:00:00Z',
+    updatedAt: '2026-06-26T10:00:00Z',
     priorityScore: 79,
     credibilityScore: 89,
     credibilityExplanation: 'Low brightness lux levels confirmed near coordinate.',
     escalationLevel: 0,
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'In the Works',
+    progressPercent: 30
   },
   {
     id: 'gurgaon-117',
@@ -495,15 +527,17 @@ const SEED_ISSUES: Issue[] = [
     reporterName: 'Ashna Agarwal',
     votesCount: 110,
     voters: [],
-    createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(), // 15 days ago (Ignored/Delayed)
-    updatedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-14T10:00:00Z',
+    updatedAt: '2026-06-14T10:00:00Z',
     priorityScore: 86,
     credibilityScore: 95,
     credibilityExplanation: 'Organic decomposing signatures found. Massive public sanitation risk.',
     escalationLevel: 2,
-    escalationDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+    escalationDate: '2026-06-24T10:00:00Z',
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'Ignored / Delayed',
+    progressPercent: 10
   },
   {
     id: 'gurgaon-118',
@@ -522,15 +556,17 @@ const SEED_ISSUES: Issue[] = [
     reporterName: 'Divya Sharma',
     votesCount: 52,
     voters: [],
-    createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(), // 6 days ago (Ignored/Delayed)
-    updatedAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-23T10:00:00Z',
+    updatedAt: '2026-06-23T10:00:00Z',
     priorityScore: 66,
     credibilityScore: 88,
     credibilityExplanation: 'Septic backflow verified on coordinate. Image timestamp matches.',
     escalationLevel: 1,
-    escalationDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    escalationDate: '2026-06-28T10:00:00Z',
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'Ignored / Delayed',
+    progressPercent: 10
   },
   {
     id: 'gurgaon-119',
@@ -551,14 +587,16 @@ const SEED_ISSUES: Issue[] = [
     voters: [],
     assignedOfficerId: 'officer-rajesh',
     assignedOfficerName: 'Rajesh Kumar',
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-24T10:00:00Z',
+    updatedAt: '2026-06-27T10:00:00Z',
     priorityScore: 84,
     credibilityScore: 93,
     credibilityExplanation: 'Asphalt linear distress fracture validated on texture profile.',
     escalationLevel: 0,
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'In the Works',
+    progressPercent: 60
   },
   {
     id: 'gurgaon-120',
@@ -577,14 +615,16 @@ const SEED_ISSUES: Issue[] = [
     reporterName: 'Ashna Agarwal',
     votesCount: 34,
     voters: [],
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago, Action Pending
-    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-26T10:00:00Z',
+    updatedAt: '2026-06-26T10:00:00Z',
     priorityScore: 52,
     credibilityScore: 85,
     credibilityExplanation: 'Zero ambient street-lux calculated from photo.',
     escalationLevel: 0,
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'Action Pending',
+    progressPercent: 20
   },
   {
     id: 'gurgaon-121',
@@ -603,15 +643,17 @@ const SEED_ISSUES: Issue[] = [
     reporterName: 'Karan Mehra',
     votesCount: 198,
     voters: [],
-    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 days ago (Ignored/Delayed)
-    updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-19T10:00:00Z',
+    updatedAt: '2026-06-19T10:00:00Z',
     priorityScore: 91,
     credibilityScore: 97,
     credibilityExplanation: 'Water-filled road cavity validated by texture profiling.',
     escalationLevel: 2,
-    escalationDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    escalationDate: '2026-06-26T10:00:00Z',
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'Ignored / Delayed',
+    progressPercent: 10
   },
   {
     id: 'gurgaon-122',
@@ -632,8 +674,8 @@ const SEED_ISSUES: Issue[] = [
     voters: [],
     assignedOfficerId: 'officer-sanjay',
     assignedOfficerName: 'Sanjay Dutt',
-    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-19T10:00:00Z',
+    updatedAt: '2026-06-28T10:00:00Z',
     beforeImageUrl: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=600&q=80',
     afterImageUrl: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=600&q=80',
     resolutionNotes: 'Secured the primary high pressure seal and replaced the corroded steel flange bolts.',
@@ -642,7 +684,9 @@ const SEED_ISSUES: Issue[] = [
     credibilityExplanation: 'Pressure leak verified. Seal repair successfully analyzed.',
     escalationLevel: 0,
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'In the Works',
+    progressPercent: 80
   },
   {
     id: 'gurgaon-123',
@@ -661,14 +705,16 @@ const SEED_ISSUES: Issue[] = [
     reporterName: 'Amit Shah',
     votesCount: 22,
     voters: [],
-    createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago, Action Pending
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-28T10:00:00Z',
+    updatedAt: '2026-06-28T10:00:00Z',
     priorityScore: 31,
     credibilityScore: 84,
     credibilityExplanation: 'Bench cracks verified by visual bounding box check.',
     escalationLevel: 0,
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'Action Pending',
+    progressPercent: 20
   },
   {
     id: 'gurgaon-124',
@@ -687,14 +733,16 @@ const SEED_ISSUES: Issue[] = [
     reporterName: 'Divya Sharma',
     votesCount: 44,
     voters: [],
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago, Action Pending
-    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-26T10:00:00Z',
+    updatedAt: '2026-06-26T10:00:00Z',
     priorityScore: 62,
     credibilityScore: 88,
     credibilityExplanation: 'Liquid surface level verified with reference elevation marks.',
     escalationLevel: 0,
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'Action Pending',
+    progressPercent: 20
   },
   {
     id: 'gurgaon-125',
@@ -713,15 +761,17 @@ const SEED_ISSUES: Issue[] = [
     reporterName: 'Karan Mehra',
     votesCount: 165,
     voters: [],
-    createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 days ago (Ignored/Delayed)
-    updatedAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-15T10:00:00Z',
+    updatedAt: '2026-06-15T10:00:00Z',
     priorityScore: 87,
     credibilityScore: 94,
     credibilityExplanation: 'AI fluid viscosity detection indicates high toxic density markers.',
     escalationLevel: 2,
-    escalationDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+    escalationDate: '2026-06-25T10:00:00Z',
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'Ignored / Delayed',
+    progressPercent: 10
   },
   {
     id: 'gurgaon-126',
@@ -742,14 +792,16 @@ const SEED_ISSUES: Issue[] = [
     voters: [],
     assignedOfficerId: 'officer-sanjay',
     assignedOfficerName: 'Sanjay Dutt',
-    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    createdAt: '2026-06-25T10:00:00Z',
+    updatedAt: '2026-06-28T10:00:00Z',
     priorityScore: 96,
     credibilityScore: 98,
     credibilityExplanation: 'Submerged asphalt visual matching indicates water depth exceeds 18 inches.',
     escalationLevel: 0,
     isMerged: false,
-    affectedCount: 1
+    affectedCount: 1,
+    actionClassification: 'In the Works',
+    progressPercent: 60
   }
 ];
 
@@ -762,7 +814,7 @@ const SEED_COMMENTS: Record<string, Comment[]> = {
       userName: 'Ashna Agarwal',
       userRole: 'Citizen',
       text: 'This is getting worse daily. The crater potholes are practically submerging under rainwater when it pours.',
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+      createdAt: '2026-06-26T10:00:00Z'
     },
     {
       id: 'c-2',
@@ -771,7 +823,7 @@ const SEED_COMMENTS: Record<string, Comment[]> = {
       userName: 'Rajesh Kumar',
       userRole: 'Officer',
       text: 'We have registered this. Repairs will initiate as soon as the rain lets up.',
-      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+      createdAt: '2026-06-28T10:00:00Z'
     }
   ],
   'gurgaon-102': [
@@ -782,7 +834,7 @@ const SEED_COMMENTS: Record<string, Comment[]> = {
       userName: 'Amit Shah',
       userRole: 'Citizen',
       text: 'The sewage water has started flowing into our building basements. Please dispatch sewer pumps!',
-      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+      createdAt: '2026-06-27T10:00:00Z'
     }
   ]
 };
@@ -795,7 +847,7 @@ const SEED_LOGS: Record<string, ActivityLog[]> = {
       userId: 'reporter-ashna',
       userName: 'Ashna Agarwal',
       action: 'Reported issue and completed AI verification.',
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+      createdAt: '2026-06-26T10:00:00Z'
     },
     {
       id: 'log-2',
@@ -803,7 +855,7 @@ const SEED_LOGS: Record<string, ActivityLog[]> = {
       userId: 'officer-rajesh',
       userName: 'Rajesh Kumar',
       action: 'Assigned roads division team and approved materials list.',
-      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+      createdAt: '2026-06-28T10:00:00Z'
     }
   ]
 };
@@ -820,7 +872,7 @@ const SEED_VERIFICATION_REQUESTS: Record<string, VerificationRequest[]> = {
       votesVerified: 2,
       votesRejected: 0,
       voters: { 'reporter-ashna': true, 'reporter-amit': true },
-      createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      createdAt: '2026-06-28T10:00:00Z',
       status: 'Pending'
     }
   ]
@@ -1027,7 +1079,7 @@ export const dbSeedFirestoreData = async (): Promise<Issue[]> => {
           userId: 'officer-rajesh',
           userName: 'Rajesh Kumar',
           action: 'Assigned roads division team and approved materials list.',
-          createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString()
+          createdAt: '2026-06-28T10:00:00Z'
         });
       }
       
@@ -1043,7 +1095,7 @@ export const dbSeedFirestoreData = async (): Promise<Issue[]> => {
           votesVerified: 2,
           votesRejected: 0,
           voters: { 'reporter-ashna': true, 'reporter-amit': true },
-          createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+          createdAt: '2026-06-28T10:00:00Z',
           status: 'Pending'
         });
       }

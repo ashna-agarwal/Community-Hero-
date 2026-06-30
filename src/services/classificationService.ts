@@ -18,6 +18,78 @@ export interface ClassificationDetail {
  * Evaluates an issue's active field status and administrative responsiveness.
  */
 export function getIssueActionClassification(issue: Issue): ClassificationDetail {
+  // If the issue has explicit stored actionClassification, use that to bypass live date/keyword calculations!
+  if (issue.actionClassification) {
+    const status = issue.actionClassification;
+    const progressPercent = issue.progressPercent !== undefined ? issue.progressPercent : 20;
+
+    if (status === 'In the Works') {
+      let reason = "This incident has active field operations underway or has been successfully resolved.";
+      let label = "Action: In the Works";
+
+      if (issue.status === 'Verified') {
+        reason = "Resolution successfully audited and verified by citizen double-blind consensus.";
+        label = "Action Taken: Verified Fix";
+      } else if (issue.status === 'Closed') {
+        reason = "Incident lifecycle completed and closed in records.";
+        label = "Action Taken: Closed";
+      } else if (issue.status === 'Community Verification') {
+        reason = "Field repairs submitted by officer; currently undergoing double-blind community verification.";
+        label = "Action Taken: Verification Audit";
+      } else if (issue.status === 'In Progress') {
+        reason = `Active repair work underway. Dispatched to Officer ${issue.assignedOfficerName || 'Municipal Team'}.`;
+        label = "Action: In the Works";
+      } else if (issue.status === 'Resolved') {
+        reason = "Field repairs marked completed by assigned officer. Awaiting citizen confirmation.";
+        label = "Action Taken: Resolved";
+      } else if (issue.status === 'Under Review') {
+        reason = "Incident currently undergoing administrative review and route planning.";
+        label = "Action Taken: Under Review";
+      }
+
+      return {
+        status: 'In the Works',
+        bgColor: 'bg-emerald-50 border-emerald-100',
+        textColor: 'text-emerald-800',
+        borderColor: 'border-emerald-200',
+        badgeColor: 'bg-emerald-500',
+        icon: 'CheckCircle2',
+        label,
+        reason,
+        progressPercent
+      };
+    } else if (status === 'Ignored / Delayed') {
+      let reason = `No field officer has been assigned to this hazard. System metrics indicate bureaucratic delay.`;
+      if ((issue.escalationLevel || 0) >= 1) {
+        reason = `Escalated to Level ${issue.escalationLevel} (${issue.escalationLevel === 2 ? 'Dept Head' : 'Senior Officer'}) due to ongoing municipal inaction.`;
+      }
+      return {
+        status: 'Ignored / Delayed',
+        bgColor: 'bg-red-50 border-red-100',
+        textColor: 'text-red-800',
+        borderColor: 'border-red-200',
+        badgeColor: 'bg-red-500',
+        icon: 'AlertTriangle',
+        label: 'Action Status: Ignored / Delayed',
+        reason,
+        progressPercent
+      };
+    } else {
+      // Action Pending
+      return {
+        status: 'Action Pending',
+        bgColor: 'bg-amber-50 border-amber-100',
+        textColor: 'text-amber-800',
+        borderColor: 'border-amber-200',
+        badgeColor: 'bg-amber-500',
+        icon: 'Clock',
+        label: 'Action Status: Pending Assignment',
+        reason: `Undergoing automated triage and routing to the respective municipal ward.`,
+        progressPercent
+      };
+    }
+  }
+
   const now = new Date();
   const createdDate = new Date(issue.createdAt);
   const diffTime = Math.abs(now.getTime() - createdDate.getTime());

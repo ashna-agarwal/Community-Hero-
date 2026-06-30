@@ -1035,7 +1035,12 @@ export const dbSeedFirestoreData = async (): Promise<Issue[]> => {
     ];
     
     for (const dept of depts) {
-      await setDoc(doc(db, 'departments', dept.id), dept);
+      try {
+        await setDoc(doc(db, 'departments', dept.id), dept);
+      } catch (err: any) {
+        console.error(`[Community Hero Seeding] Failed writing department ${dept.id}:`, err);
+        throw err;
+      }
     }
     
     // Seed users (profiles)
@@ -1053,51 +1058,77 @@ export const dbSeedFirestoreData = async (): Promise<Issue[]> => {
     ];
     
     for (const u of seedUsers) {
-      await setDoc(doc(db, 'users', u.uid), u);
+      try {
+        await setDoc(doc(db, 'users', u.uid), u);
+      } catch (err: any) {
+        console.error(`[Community Hero Seeding] Failed writing user profile ${u.uid}:`, err);
+        throw err;
+      }
     }
 
     // Seed issues
     for (const issue of SEED_ISSUES) {
       const issueDocRef = doc(issuesCollection, issue.id);
-      await setDoc(issueDocRef, issue);
+      try {
+        await setDoc(issueDocRef, issue);
+      } catch (err: any) {
+        console.error(`[Community Hero Seeding] Failed writing issue ${issue.id}:`, err);
+        throw err;
+      }
       
       // Seed activity logs and comments/verification requests if necessary
       if (issue.id === 'gurgaon-101') {
         const logRef = doc(db, `issues/${issue.id}/activityLogs`, 'log-1');
-        await setDoc(logRef, {
-          id: 'log-1',
-          issueId: issue.id,
-          userId: 'reporter-ashna',
-          userName: 'Ashna Agarwal',
-          action: 'Reported issue and completed AI verification.',
-          createdAt: issue.createdAt
-        });
+        try {
+          await setDoc(logRef, {
+            id: 'log-1',
+            issueId: issue.id,
+            userId: 'reporter-ashna',
+            userName: 'Ashna Agarwal',
+            action: 'Reported issue and completed AI verification.',
+            createdAt: issue.createdAt
+          });
+        } catch (err: any) {
+          console.error(`[Community Hero Seeding] Failed writing activityLog log-1 for issue ${issue.id}:`, err);
+          throw err;
+        }
+        
         const logRef2 = doc(db, `issues/${issue.id}/activityLogs`, 'log-2');
-        await setDoc(logRef2, {
-          id: 'log-2',
-          issueId: issue.id,
-          userId: 'officer-rajesh',
-          userName: 'Rajesh Kumar',
-          action: 'Assigned roads division team and approved materials list.',
-          createdAt: '2026-06-28T10:00:00Z'
-        });
+        try {
+          await setDoc(logRef2, {
+            id: 'log-2',
+            issueId: issue.id,
+            userId: 'officer-rajesh',
+            userName: 'Rajesh Kumar',
+            action: 'Assigned roads division team and approved materials list.',
+            createdAt: '2026-06-28T10:00:00Z'
+          });
+        } catch (err: any) {
+          console.error(`[Community Hero Seeding] Failed writing activityLog log-2 for issue ${issue.id}:`, err);
+          throw err;
+        }
       }
       
       if (issue.id === 'gurgaon-103') {
         const vreqRef = doc(db, `issues/${issue.id}/verificationRequests`, 'vr-1');
-        await setDoc(vreqRef, {
-          id: 'vr-1',
-          issueId: issue.id,
-          officerId: 'officer-manoj',
-          officerName: 'Manoj Sinha',
-          afterImageUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&w=600&q=80',
-          notes: 'All streetlights are now fully functional. Replaced bulbs with LED nodes.',
-          votesVerified: 2,
-          votesRejected: 0,
-          voters: { 'reporter-ashna': true, 'reporter-amit': true },
-          createdAt: '2026-06-28T10:00:00Z',
-          status: 'Pending'
-        });
+        try {
+          await setDoc(vreqRef, {
+            id: 'vr-1',
+            issueId: issue.id,
+            officerId: 'officer-manoj',
+            officerName: 'Manoj Sinha',
+            afterImageUrl: 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?auto=format&fit=crop&w=600&q=80',
+            notes: 'All streetlights are now fully functional. Replaced bulbs with LED nodes.',
+            votesVerified: 2,
+            votesRejected: 0,
+            voters: { 'reporter-ashna': true, 'reporter-amit': true },
+            createdAt: '2026-06-28T10:00:00Z',
+            status: 'Pending'
+          });
+        } catch (err: any) {
+          console.error(`[Community Hero Seeding] Failed writing verificationRequest vr-1 for issue ${issue.id}:`, err);
+          throw err;
+        }
       }
     }
     

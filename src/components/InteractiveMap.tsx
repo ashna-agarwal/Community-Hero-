@@ -1,35 +1,89 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, ThumbsUp, Activity, Award, Info, Compass, Navigation, X } from 'lucide-react';
-import { dbGetIssues, dbSupportIssue } from '../services/dbService';
-import { Issue } from '../types';
-import { useAuth } from '../contexts/AuthContext';
+import { Info, Compass, Navigation, X } from 'lucide-react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { dbGetIssues } from '../services/dbService';
+import { Issue, IssueStatus } from '../types';
+
+// Haversine formula to compute distance in km between two coordinates
+function getDistanceInKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Radius of the earth in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
 interface InteractiveMapProps {
   onViewIssue: (issueId: string) => void;
 }
 
 export const InteractiveMap: React.FC<InteractiveMapProps> = ({ onViewIssue }) => {
-  const { profile } = useAuth();
   const [issues, setIssues] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markersGroupRef = useRef<L.LayerGroup | null>(null);
+  const userMarkerRef = useRef<L.Marker | null>(null);
 
   // Focus coordinates (Gurgaon default center)
   const defaultCenter = { lat: 28.4595, lng: 77.0266 };
-  const [mapCenter, setMapCenter] = useState(defaultCenter);
 
-  // Dragging state
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Maps statuses to beautiful pin hex colors representing the theme legend
+  const getPinColor = (status: IssueStatus): string => {
+    switch (status) {
+      case 'Submitted':
+      case 'AI Analysis':
+      case 'Department Assigned':
+      case 'Under Review':
+        return '#a855f7'; // Purple-500
+      case 'In Progress':
+      case 'Resolved':
+        return '#0ea5e9'; // Sky-500
+      case 'Community Verification':
+        return '#f97316'; // Orange-500
+      case 'Verified':
+      case 'Closed':
+        return '#22c55e'; // Green-500
+      default:
+        return '#3b82f6'; // Blue-500
+    }
+  };
 
+  // Custom function to generate custom colored SVG marker icon
+  const createIssueIcon = (color: string) => {
+    return L.divIcon({
+      html: `
+        <div class="relative flex items-center justify-center cursor-pointer">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="${color}" stroke="white" stroke-width="2.5" class="w-8 h-8 drop-shadow-md hover:scale-110 transition-transform duration-200">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
+        </div>
+      `,
+      className: 'custom-issue-marker',
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -32]
+    });
+  };
+
+  // Fetch coordinates from Firestore
   useEffect(() => {
     const fetchIssues = async () => {
       try {
         const list = await dbGetIssues();
         setIssues(list);
       } catch (err) {
-        console.error(err);
+        console.error('[InteractiveMap] Error loading issues:', err);
       } finally {
         setLoading(false);
       }
@@ -37,105 +91,166 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ onViewIssue }) =
     fetchIssues();
   }, []);
 
-  const getStatusColor = (status: Issue['status']) => {
-    switch (status) {
-      case 'Submitted': return 'bg-purple-500 ring-purple-200';
-      case 'In Progress': return 'bg-sky-500 ring-sky-200';
-      case 'Community Verification': return 'bg-orange-500 ring-orange-200 animate-pulse';
-      case 'Verified': return 'bg-green-500 ring-green-200';
-      default: return 'bg-blue-500 ring-blue-200';
+  // Initialize Leaflet Map
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+
+    // Use default center initially
+    const map = L.map(mapContainerRef.current, {
+      center: [defaultCenter.lat, defaultCenter.lng],
+      zoom: 13,
+      zoomControl: true,
+      attributionControl: true
+    });
+
+    mapRef.current = map;
+
+    // Set up standard OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // Layer group to hold issue pins dynamically
+    const markersGroup = L.layerGroup().addTo(map);
+    markersGroupRef.current = markersGroup;
+
+    // Call invalidateSize with a small timeout to make sure it renders beautifully within flexible layouts
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
+
+    // Clean up
+    return () => {
+      clearTimeout(timer);
+      map.remove();
+      mapRef.current = null;
+      markersGroupRef.current = null;
+    };
+  }, []);
+
+  // Get User's Live Location on mount
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const loc = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          setUserLocation(loc);
+          if (mapRef.current) {
+            mapRef.current.flyTo([loc.lat, loc.lng], 14, { animate: true, duration: 1.5 });
+          }
+        },
+        (error) => {
+          console.warn('[InteractiveMap] Geolocation failed or denied:', error);
+          // Gracefully default to Gurgaon center
+          if (mapRef.current) {
+            mapRef.current.setView([defaultCenter.lat, defaultCenter.lng], 13);
+          }
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
+    } else {
+      console.warn('[InteractiveMap] Geolocation is not supported.');
+    }
+  }, []);
+
+  // Track & Update User Location Marker
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !userLocation) return;
+
+    if (userMarkerRef.current) {
+      userMarkerRef.current.setLatLng([userLocation.lat, userLocation.lng]);
+    } else {
+      const userIcon = L.divIcon({
+        html: `
+          <div class="relative flex h-10 w-10 items-center justify-center">
+            <span class="absolute inline-flex h-6 w-6 animate-ping rounded-full bg-blue-400 opacity-75"></span>
+            <span class="relative inline-flex h-4 w-4 rounded-full bg-blue-600 border-2 border-white shadow-md"></span>
+          </div>
+        `,
+        className: 'custom-user-marker',
+        iconSize: [40, 40],
+        iconAnchor: [20, 20]
+      });
+
+      const userMarker = L.marker([userLocation.lat, userLocation.lng], {
+        icon: userIcon,
+        title: 'You are here'
+      }).addTo(map);
+
+      userMarkerRef.current = userMarker;
+    }
+  }, [userLocation]);
+
+  // Sync Issues to markers Group
+  useEffect(() => {
+    const markersGroup = markersGroupRef.current;
+    if (!markersGroup || issues.length === 0) return;
+
+    // Clear previous issue layers
+    markersGroup.clearLayers();
+
+    // Map all issues as Leaflet markers
+    issues.forEach((issue) => {
+      if (typeof issue.lat !== 'number' || typeof issue.lng !== 'number') return;
+      
+      const pinColor = getPinColor(issue.status);
+      const icon = createIssueIcon(pinColor);
+
+      const marker = L.marker([issue.lat, issue.lng], {
+        icon: icon,
+        title: issue.title
+      });
+
+      // Show details when pin is clicked
+      marker.on('click', () => {
+        setSelectedIssue(issue);
+      });
+
+      marker.addTo(markersGroup);
+    });
+  }, [issues]);
+
+  // Recenter handler
+  const handleRecenter = () => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const loc = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          setUserLocation(loc);
+          if (mapRef.current) {
+            mapRef.current.flyTo([loc.lat, loc.lng], 14, { animate: true, duration: 1.5 });
+          }
+        },
+        (error) => {
+          console.warn('[InteractiveMap] Recenter geolocation failed:', error);
+          const target = userLocation || defaultCenter;
+          if (mapRef.current) {
+            mapRef.current.flyTo([target.lat, target.lng], 14, { animate: true, duration: 1.5 });
+          }
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    } else {
+      const target = userLocation || defaultCenter;
+      if (mapRef.current) {
+        mapRef.current.flyTo([target.lat, target.lng], 13, { animate: true, duration: 1.5 });
+      }
     }
   };
 
-  // Convert lat/lng coordinates to screen percentages based on current center
-  const getXY = (itemLat: number, itemLng: number) => {
-    const latDiff = itemLat - mapCenter.lat;
-    const lngDiff = itemLng - mapCenter.lng;
-    const x = 50 + lngDiff * 4500;
-    const y = 50 - latDiff * 4500;
-    return { x, y };
-  };
-
-  // Interactive Drag Handlers (Mouse & Touch compatible)
-  const handleMouseDown = (e: React.MouseEvent) => {
-    // Prevent dragging on button clicks
-    if ((e.target as HTMLElement).closest('button')) return;
-    setIsDragging(true);
-    setDragStart({ x: e.clientX, y: e.clientY });
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging) return;
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    const dx = e.clientX - dragStart.x;
-    const dy = e.clientY - dragStart.y;
-
-    // Viewport scaling: 100% size is ~ 0.0222 degrees (100 / 4500)
-    const latChange = (dy / rect.height) * (100 / 4500);
-    const lngChange = -(dx / rect.width) * (100 / 4500);
-
-    setMapCenter(prev => ({
-      lat: prev.lat + latChange,
-      lng: prev.lng + lngChange
-    }));
-
-    setDragStart({ x: e.clientX, y: e.clientY });
-  };
-
-  const handleMouseUpOrLeave = () => {
-    setIsDragging(false);
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if ((e.target as HTMLElement).closest('button')) return;
-    if (e.touches.length === 1) {
-      setIsDragging(true);
-      setDragStart({ x: e.touches[0].clientX, y: e.touches[0].clientY });
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging || e.touches.length === 0) return;
-    const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    const touch = e.touches[0];
-    const dx = touch.clientX - dragStart.x;
-    const dy = touch.clientY - dragStart.y;
-
-    const latChange = (dy / rect.height) * (100 / 4500);
-    const lngChange = -(dx / rect.width) * (100 / 4500);
-
-    setMapCenter(prev => ({
-      lat: prev.lat + latChange,
-      lng: prev.lng + lngChange
-    }));
-
-    setDragStart({ x: touch.clientX, y: touch.clientY });
-  };
-
-  const handleTouchEnd = () => {
-    setIsDragging(false);
-  };
-
-  const resetToDefaultCenter = () => {
-    setMapCenter(defaultCenter);
-  };
-
-  // Vector features representing roads and labels mapped to geographic positions
-  const sectorLabels = [
-    { text: 'SECTOR 56', lat: 28.4635, lng: 77.0216 },
-    { text: 'SECTOR 22', lat: 28.4555, lng: 77.0316 },
-    { text: 'WARD 8 RESIDENTIAL', lat: 28.4525, lng: 77.0256 },
-  ];
-
-  const majorAvenues = [
-    { id: 1, lat1: 28.465, lng1: 77.020, lat2: 28.450, lng2: 77.023, isDash: true, color: '#94a3b8', width: 6 },
-    { id: 2, lat1: 28.459, lng1: 77.015, lat2: 28.458, lng2: 77.035, isDash: true, color: '#94a3b8', width: 6 },
-    { id: 3, lat1: 28.466, lng1: 77.031, lat2: 28.451, lng2: 77.029, isDash: false, color: '#cbd5e1', width: 4 },
-  ];
+  // Nearby issues logic (issues within 5km of user location)
+  const nearbyRadiusKm = 5;
+  const nearbyIssues = userLocation
+    ? issues.filter(issue => getDistanceInKm(userLocation.lat, userLocation.lng, issue.lat, issue.lng) <= nearbyRadiusKm)
+    : [];
 
   return (
     <div className="bg-white border border-slate-100 rounded-2xl shadow-xs overflow-hidden flex flex-col h-[calc(100vh-160px)]" id="interactive-map-panel">
@@ -156,117 +271,44 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ onViewIssue }) =
       </div>
 
       <div className="flex-1 relative flex flex-col md:flex-row bg-slate-50 overflow-hidden">
-        {/* Left Side: Real Map Representation SVG layout */}
-        <div 
-          ref={containerRef}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUpOrLeave}
-          onMouseLeave={handleMouseUpOrLeave}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          className={`flex-1 relative min-h-[300px] border-r border-slate-100 overflow-hidden bg-slate-100/60 flex items-center justify-center select-none ${
-            isDragging ? 'cursor-grabbing' : 'cursor-grab'
-          }`}
-          style={{ touchAction: 'none' }}
-        >
+        {/* Left Side: Leaflet Map Container */}
+        <div className="flex-1 relative min-h-[300px] border-r border-slate-100 overflow-hidden">
           
-          {/* Decorative Vector Grid representing sector street maps */}
-          <svg className="absolute inset-0 w-full h-full opacity-35 pointer-events-none" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern 
-                id="grid-pattern" 
-                width="60" 
-                height="60" 
-                patternUnits="userSpaceOnUse"
-                x={-(mapCenter.lng - defaultCenter.lng) * 4500 * 5}
-                y={(mapCenter.lat - defaultCenter.lat) * 4500 * 5}
-              >
-                <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#cbd5e1" strokeWidth="1" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid-pattern)" />
-            
-            {/* Major avenues mapping geographically */}
-            {majorAvenues.map((av) => {
-              const p1 = getXY(av.lat1, av.lng1);
-              const p2 = getXY(av.lat2, av.lng2);
-              return (
-                <line 
-                  key={av.id}
-                  x1={`${p1.x}%`} 
-                  y1={`${p1.y}%`} 
-                  x2={`${p2.x}%`} 
-                  y2={`${p2.y}%`} 
-                  stroke={av.color} 
-                  strokeWidth={av.width} 
-                  strokeDasharray={av.isDash ? "5,5" : undefined} 
-                />
-              );
-            })}
-
-            {/* Sector divisions mapping geographically */}
-            {sectorLabels.map((lbl, idx) => {
-              const p = getXY(lbl.lat, lbl.lng);
-              return (
-                <text 
-                  key={idx}
-                  x={`${p.x}%`} 
-                  y={`${p.y}%`} 
-                  fill="#94a3b8" 
-                  fontSize="12" 
-                  fontWeight="extrabold"
-                  textAnchor="middle"
-                >
-                  {lbl.text}
-                </text>
-              );
-            })}
-          </svg>
-
-          {/* Interactive Marker Nodes */}
-          {issues.map((issue) => {
-            const xy = getXY(issue.lat, issue.lng);
-
-            // Hide pins that are dragged completely out of bounds to avoid clutter
-            if (xy.x < -15 || xy.x > 115 || xy.y < -15 || xy.y > 115) return null;
-
-            return (
-              <button
-                key={issue.id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedIssue(issue);
-                }}
-                className={`absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center text-white ring-4 transition-all duration-300 hover:scale-125 hover:z-20 shadow-md ${getStatusColor(issue.status)} ${
-                  selectedIssue?.id === issue.id ? 'scale-125 z-10 ring-white' : ''
-                }`}
-                style={{ left: `${xy.x}%`, top: `${xy.y}%` }}
-                title={issue.title}
-              >
-                <MapPin className="w-4.5 h-4.5 shrink-0" />
-              </button>
-            );
-          })}
+          {/* Real Map Frame target */}
+          <div ref={mapContainerRef} className="w-full h-full z-0" />
 
           {/* Map info tag & Panning tips */}
-          <div className="absolute bottom-3 left-3 bg-white/95 border border-slate-200/80 p-2.5 rounded-xl shadow-xs text-left max-w-[240px] md:max-w-xs backdrop-blur-md z-10">
-            <div className="flex items-center gap-1 text-[10px] font-bold text-slate-700 uppercase">
-              <Compass className="w-3.5 h-3.5 text-blue-600 animate-spin-slow" />
-              <span>Map Radar Controller</span>
+          <div className="absolute bottom-3 left-3 bg-white/95 border border-slate-200/80 p-2.5 rounded-xl shadow-xs text-left max-w-[240px] md:max-w-xs backdrop-blur-md z-[1000]">
+            <div className="flex items-center justify-between gap-1.5 text-[10px] font-bold text-slate-700 uppercase">
+              <span className="flex items-center gap-1">
+                <Compass className="w-3.5 h-3.5 text-blue-600 animate-spin-slow" />
+                <span>Map Radar Controller</span>
+              </span>
+              {userLocation && (
+                <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full font-extrabold text-[9px] border border-blue-100">
+                  {nearbyIssues.length} nearby
+                </span>
+              )}
             </div>
             <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
-              Drag map with <strong>mouse</strong> or <strong>finger</strong> to explore nearby issues. Click pins for telemetry details.
+              {userLocation ? (
+                <>
+                  Found <strong>{nearbyIssues.length} issues</strong> within {nearbyRadiusKm}km of your location. Click pins for telemetry details.
+                </>
+              ) : (
+                <>
+                  Drag map or enable location permission to explore issues near you. Click pins for telemetry details.
+                </>
+              )}
             </p>
           </div>
 
           {/* Recenter Navigation Button */}
           <button
             type="button"
-            onClick={resetToDefaultCenter}
-            className="absolute top-3 right-3 p-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl shadow-md transition-all z-10 flex items-center gap-1 text-[10px] font-bold"
-            title="Recenter to Sector 29 Epicenter"
+            onClick={handleRecenter}
+            className="absolute top-3 right-3 p-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl shadow-md transition-all z-[1000] flex items-center gap-1 text-[10px] font-bold"
+            title="Recenter to Live Location"
           >
             <Navigation className="w-3.5 h-3.5 text-blue-600 rotate-45" />
             <span className="hidden sm:inline">Recenter</span>
@@ -274,12 +316,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ onViewIssue }) =
 
           {/* Mobile selected issue floating drawer card */}
           {selectedIssue && (
-            <div className="absolute bottom-3 left-3 right-3 md:hidden bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xl z-30 flex flex-col gap-3 backdrop-blur-md animate-in fade-in slide-in-from-bottom duration-300">
+            <div className="absolute bottom-3 left-3 right-3 md:hidden bg-white border border-slate-200/80 p-4 rounded-2xl shadow-xl z-[1010] flex flex-col gap-3 backdrop-blur-md animate-in fade-in slide-in-from-bottom duration-300">
               <div className="flex justify-between items-start">
                 <div className="text-left">
                   <span className="text-[8px] uppercase tracking-wider font-extrabold text-indigo-600">Incident Telemetry</span>
                   <h4 className="text-xs font-bold text-slate-900 mt-0.5">{selectedIssue.title}</h4>
-                  <p className="text-[9px] text-slate-400 font-mono">#{selectedIssue.id.slice(0, 8)} • Score: {selectedIssue.priorityScore || 50}</p>
+                  <p className="text-[9px] text-slate-400 font-mono">#{selectedIssue.id.slice(0, 8)}</p>
                 </div>
                 <button
                   type="button"
@@ -328,7 +370,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ onViewIssue }) =
           )}
         </div>
 
-        {/* Right Side: Marker Quick Inspector (Visible on desktop/tablet only) */}
+        {/* Right Side: Marker Quick Inspector */}
         <div className="hidden md:flex md:w-80 border-l border-slate-100 p-4 flex-col justify-between bg-white overflow-y-auto" id="map-quick-inspector">
           {selectedIssue ? (
             <div className="space-y-4 text-left">
@@ -337,7 +379,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ onViewIssue }) =
                   <span className="text-[9px] uppercase tracking-wider font-bold text-indigo-600 block">Incident Inspector</span>
                   <h4 className="text-sm font-extrabold text-slate-900 mt-1">{selectedIssue.title}</h4>
                   <p className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1 font-mono">
-                    #{selectedIssue.id.slice(0, 8)} • Score: {selectedIssue.priorityScore || 50}
+                    #{selectedIssue.id.slice(0, 8)}
                   </p>
                 </div>
                 <button
@@ -381,12 +423,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({ onViewIssue }) =
                   <span className="font-semibold text-slate-400 uppercase text-[9px] block">Current Stage</span>
                   <span className="text-slate-850 font-semibold block mt-0.5">{selectedIssue.status}</span>
                 </div>
-                
-                {selectedIssue.isMerged && (
-                  <div className="p-2 bg-indigo-50 border border-indigo-100 rounded-lg text-[10px] text-indigo-950 font-medium">
-                    ✦ This represents <strong>{selectedIssue.affectedCount || 500}</strong> merged duplications!
-                  </div>
-                )}
               </div>
 
               <div className="pt-2 border-t border-slate-100">
